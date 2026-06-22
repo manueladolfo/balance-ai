@@ -1,0 +1,145 @@
+{
+  "documents": [
+    {
+      "id": "doc-1",
+      "name": "FAC_2026_001_Iberdrola.pdf",
+      "storage_path": "/mock-uploads/FAC_2026_001_Iberdrola.pdf",
+      "status": "completed",
+      "type": "Factura",
+      "ia_description": "Factura de luz Iberdrola - Junio 2026, Sede Central",
+      "created_at": "2026-06-18T09:21:21.966Z"
+    },
+    {
+      "id": "doc-2",
+      "name": "REC_Taxi_Airport.jpg",
+      "storage_path": "/mock-uploads/REC_Taxi_Airport.jpg",
+      "status": "completed",
+      "type": "Recibo",
+      "ia_description": "Gasto de taxi corporativo - Traslado aeropuerto Barajas",
+      "created_at": "2026-06-17T11:21:21.967Z"
+    }
+  ],
+  "entries": [
+    {
+      "id": "entry-1",
+      "document_id": "doc-1",
+      "entry_date": "2026-06-15",
+      "entry_number": 1,
+      "reference": "FAC_2026_001",
+      "concept": "Suministro eléctrico Iberdrola",
+      "is_balanced": true,
+      "created_at": "2026-06-18T09:21:21.967Z",
+      "lines": [
+        {
+          "id": "line-1",
+          "entry_id": "entry-1",
+          "line_type": "debe",
+          "subaccount_code": "628.0001",
+          "subaccount_desc": "Suministros de energía eléctrica",
+          "amount": 202.73
+        },
+        {
+          "id": "line-2",
+          "entry_id": "entry-1",
+          "line_type": "debe",
+          "subaccount_code": "472.0021",
+          "subaccount_desc": "Hacienda Pública, IVA Soportado 21%",
+          "amount": 42.57
+        },
+        {
+          "id": "line-3",
+          "entry_id": "entry-1",
+          "line_type": "haber",
+          "subaccount_code": "410.0055",
+          "subaccount_desc": "Acreedores por prestaciones de servicios - Iberdrola",
+          "amount": 245.3
+        }
+      ]
+    },
+    {
+      "id": "entry-2",
+      "document_id": "doc-2",
+      "entry_date": "2026-06-14",
+      "entry_number": 2,
+      "reference": "REC_5521",
+      "concept": "Gasto de locomoción - Taxi Aeropuerto",
+      "is_balanced": true,
+      "created_at": "2026-06-17T11:21:21.967Z",
+      "lines": [
+        {
+          "id": "line-4",
+          "entry_id": "entry-2",
+          "line_type": "debe",
+          "subaccount_code": "629.0042",
+          "subaccount_desc": "Gastos de viaje - Taxi y transporte",
+          "amount": 35
+        },
+        {
+          "id": "line-5",
+          "entry_id": "entry-2",
+          "line_type": "haber",
+          "subaccount_code": "570.0000",
+          "subaccount_desc": "Caja, euros",
+          "amount": 35
+        }
+      ]
+    }
+  ],
+  "pgc_accounts": [
+    {
+      "code": "628.0000",
+      "description": "Suministros",
+      "is_operational": false
+    },
+    {
+      "code": "628.0001",
+      "description": "Suministros de energía eléctrica",
+      "is_operational": true
+    },
+    {
+      "code": "472.0021",
+      "description": "Hacienda Pública, IVA Soportado 21%",
+      "is_operational": true
+    },
+    {
+      "code": "410.0000",
+      "description": "Acreedores por prestaciones de servicios",
+      "is_operational": false
+    },
+    {
+      "code": "410.0055",
+      "description": "Acreedores por prestaciones de servicios - Iberdrola",
+      "is_operational": true
+    },
+    {
+      "code": "629.0000",
+      "description": "Otros servicios (Gastos diversos)",
+      "is_operational": false
+    },
+    {
+      "code": "629.0042",
+      "description": "Gastos de viaje - Taxi y transporte",
+      "is_operational": true
+    },
+    {
+      "code": "570.0000",
+      "description": "Caja, euros",
+      "is_operational": true
+    },
+    {
+      "code": "400.0000",
+      "description": "Proveedores (pesetas/euros)",
+      "is_operational": false
+    },
+    {
+      "code": "477.0021",
+      "description": "Hacienda Pública, IVA Repercutido 21%",
+      "is_operational": true
+    },
+    {
+      "code": "700.0000",
+      "description": "Ventas de mercaderías",
+      "is_operational": true
+    }
+  ]
+}
