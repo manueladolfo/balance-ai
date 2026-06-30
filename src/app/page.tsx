@@ -37,6 +37,15 @@ interface BulkFileItem {
   errorMsg?: string;
 }
 
+interface AppNotification {
+  id: string;
+  title: string;
+  description: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  timestamp: string;
+  read: boolean;
+}
+
 export default function Home() {
   // Tabs and general UI state
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Empezamos en false para mostrar la pantalla de login de inmediato como en la captura
@@ -146,6 +155,25 @@ export default function Home() {
 
   // Notifications/Toasts
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: 'init',
+      title: 'Conexión Establecida',
+      description: 'Base de datos Supabase conectada con éxito.',
+      type: 'success',
+      timestamp: 'Reciente',
+      read: false
+    },
+    {
+      id: 'welcome',
+      title: 'Bienvenido a Balance AI',
+      description: 'Tu copiloto contable autónomo está listo para procesar documentos.',
+      type: 'info',
+      timestamp: 'Reciente',
+      read: false
+    }
+  ]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // 1. Fetch data on mount
   const checkSupabaseConnection = async () => {
@@ -283,7 +311,7 @@ export default function Home() {
       setSelectedCompanyId(newCompany.id);
       localStorage.setItem('active_company_id', newCompany.id);
       
-      showToast(`Empresa "${newCompany.name}" creada correctamente.`, 'success');
+      addNotification('Empresa creada', `La empresa "${newCompany.name}" ha sido dada de alta correctamente.`, 'success');
       setIsCreateCompanyModalOpen(false);
       setNewCompanyName('');
       setNewCompanyCif('');
@@ -328,7 +356,7 @@ export default function Home() {
         throw new Error(data.error || 'Error al eliminar la empresa.');
       }
 
-      showToast(`Empresa "${companyToDelete.name}" eliminada correctamente.`, 'success');
+      addNotification('Empresa eliminada', `La empresa "${companyToDelete.name}" y todos sus datos han sido borrados de forma permanente.`, 'warning');
       
       const updatedCompanies = companies.filter(c => c.id !== selectedCompanyId);
       setCompanies(updatedCompanies);
@@ -707,6 +735,20 @@ export default function Home() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Notification helper
+  const addNotification = (title: string, description: string, type: AppNotification['type']) => {
+    const newNotif: AppNotification = {
+      id: Math.random().toString(36).substring(7),
+      title,
+      description,
+      type,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    showToast(title, type === 'error' ? 'error' : type === 'info' ? 'info' : 'success');
+  };
+
   // Helper to calculate dynamic extraction speed average
   const getAverageExtractionSpeed = () => {
     if (extractionTimes.length > 0) {
@@ -783,7 +825,7 @@ export default function Home() {
       }
 
       setUploadProgress(100);
-      showToast(`Documento "${file.name}" procesado con éxito. Asiento contable generado.`, 'success');
+      addNotification('Documento procesado', `El documento "${file.name}" ha sido analizado y su asiento contable se generó con éxito.`, 'success');
       
       // Reload documents and entries
       await fetchData(selectedCompanyId);
@@ -802,7 +844,7 @@ export default function Home() {
 
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || 'Error durante el procesamiento.', 'error');
+      addNotification('Error de procesamiento', `No se pudo analizar el documento "${file.name}": ${err.message || 'Error en OCR/Gemini'}`, 'error');
     } finally {
       setTimeout(() => {
         setIsUploading(false);
@@ -949,12 +991,18 @@ export default function Home() {
         }
       }
 
-      showToast('Procesamiento de cola masiva completado.', 'success');
+      const successCount = bulkFiles.filter(f => f.status === 'completed').length;
+      const errorCount = bulkFiles.filter(f => f.status === 'error').length;
+      addNotification(
+        'Procesamiento masivo completado', 
+        `Se han procesado ${bulkFiles.length} documentos. Éxitos: ${successCount}, Errores: ${errorCount}.`, 
+        errorCount > 0 ? 'warning' : 'success'
+      );
       await fetchData(selectedCompanyId);
 
     } catch (err: any) {
       console.error(err);
-      showToast('Error en la carga secuencial.', 'error');
+      addNotification('Error en carga masiva', 'Ha ocurrido un error inesperado al procesar la cola secuencial.', 'error');
     } finally {
       setIsBulkProcessing(false);
     }
@@ -1009,7 +1057,7 @@ export default function Home() {
           }
 
           setUploadProgress(90);
-          showToast(data.message || `Se han importado ${data.count} cuentas al Plan Contable.`, 'success');
+          addNotification('Plan Contable Importado', data.message || `Se han importado ${data.count} cuentas al Plan Contable desde el PDF.`, 'success');
 
           // Reload PGC
           const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`, {
@@ -1020,7 +1068,7 @@ export default function Home() {
 
         } catch (err: any) {
           console.error(err);
-          showToast(err.message || 'Error al procesar el archivo PDF del PGC.', 'error');
+          addNotification('Error al importar PGC', err.message || 'Error al procesar el archivo PDF del PGC.', 'error');
         } finally {
           setUploadProgress(100);
           setTimeout(() => {
@@ -1079,7 +1127,7 @@ export default function Home() {
             setUploadProgress(80);
 
             if (res.ok) {
-              showToast(`Se han importado ${accounts.length} subcuentas al Plan Contable.`, 'success');
+              addNotification('Plan Contable Importado', `Se han importado ${accounts.length} subcuentas al Plan Contable desde el CSV.`, 'success');
               // Reload PGC
               const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
@@ -1093,7 +1141,7 @@ export default function Home() {
 
           } catch (err: any) {
             console.error(err);
-            showToast(err.message || 'Error al procesar el archivo PGC.', 'error');
+            addNotification('Error al importar PGC', err.message || 'Error al procesar el archivo CSV del PGC.', 'error');
           } finally {
             setUploadProgress(100);
             setTimeout(() => {
@@ -1231,10 +1279,10 @@ export default function Home() {
       a.remove();
       window.URL.revokeObjectURL(url);
       
-      showToast(`Descarga completada. Descomprime el archivo ZIP para obtener los ficheros de ContaPlus.`, 'success');
+      addNotification('Asientos exportados', `Descarga de diario ContaPlus ${version} (${format.toUpperCase()}) completada para ${selectedDocIds.length} documentos.`, 'info');
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || 'Error en la exportación.', 'error');
+      addNotification('Error en exportación', `No se pudo generar la exportación a ContaPlus: ${err.message || 'Error de servidor'}`, 'error');
     }
   };
 
@@ -2039,14 +2087,99 @@ export default function Home() {
             </div>
 
             {/* Notifications Bell */}
-            <button 
-              onClick={() => showToast('No tienes notificaciones pendientes.', 'info')}
-              className="p-1.5 rounded-sm hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors relative focus:outline-none"
-              title="Notificaciones"
-            >
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-error rounded-full"></span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="p-1.5 rounded-sm hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors relative focus:outline-none"
+                title="Notificaciones"
+              >
+                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                {notifications.some(n => !n.read) && (
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-error rounded-full animate-pulse"></span>
+                )}
+              </button>
+
+              {isNotificationsOpen && (
+                <>
+                  {/* Backdrop para cerrar el panel */}
+                  <div 
+                    onClick={() => setIsNotificationsOpen(false)}
+                    className="fixed inset-0 z-40"
+                  />
+                  <div className="absolute right-0 mt-2 w-80 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-3.5 px-4 text-left space-y-3 animate-fade-in flex flex-col max-h-[380px] overflow-hidden">
+                    <div className="flex justify-between items-center border-b border-outline-variant/10 pb-2.5 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-xs text-primary">notifications</span>
+                        <h4 className="font-bold text-xs text-primary">Notificaciones</h4>
+                      </div>
+                      <div className="flex gap-2">
+                        {notifications.length > 0 && (
+                          <>
+                            <button 
+                              onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+                              className="text-[9px] font-bold text-primary hover:underline focus:outline-none"
+                              title="Marcar todas como leídas"
+                            >
+                              Leídas
+                            </button>
+                            <span className="text-outline-variant/30 text-[9px] select-none">|</span>
+                            <button 
+                              onClick={() => setNotifications([])}
+                              className="text-[9px] font-bold text-red-600 hover:underline focus:outline-none"
+                              title="Limpiar historial"
+                            >
+                              Limpiar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 min-h-0 pr-0.5">
+                      {notifications.length === 0 ? (
+                        <div className="py-8 text-center text-on-surface-variant/60 flex flex-col items-center justify-center gap-2 select-none">
+                          <span className="material-symbols-outlined text-xl text-on-surface-variant/40">notifications_off</span>
+                          <span className="text-[10px] font-medium">No tienes notificaciones pendientes</span>
+                        </div>
+                      ) : (
+                        notifications.map((item) => (
+                          <div 
+                            key={item.id} 
+                            onClick={() => setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n))}
+                            className={`p-2.5 rounded-sm border transition-all cursor-pointer flex gap-3 text-left ${
+                              item.read 
+                                ? 'bg-surface-container-low/20 border-outline-variant/5 opacity-70' 
+                                : 'bg-primary/5 border-primary/10 hover:bg-primary/10 shadow-[0_1px_3px_rgba(0,0,0,0.02)]'
+                            }`}
+                          >
+                            <span className={`material-symbols-outlined text-base shrink-0 mt-0.5 ${
+                              item.type === 'success' ? 'text-[#006d37]' : 
+                              item.type === 'error' ? 'text-red-600' : 
+                              item.type === 'warning' ? 'text-[#b06000]' : 'text-primary'
+                            }`}>
+                              {item.type === 'success' ? 'check_circle' : 
+                               item.type === 'error' ? 'cancel' : 
+                               item.type === 'warning' ? 'warning' : 'info'}
+                            </span>
+                            <div className="space-y-0.5 min-w-0">
+                              <h5 className={`text-[10px] font-bold truncate ${item.read ? 'text-on-surface-variant' : 'text-primary'}`}>
+                                {item.title}
+                              </h5>
+                              <p className="text-[10px] text-on-surface-variant leading-relaxed break-words font-medium">
+                                {item.description}
+                              </p>
+                              <span className="block text-[8px] text-on-surface-variant/50 font-mono-data">
+                                {item.timestamp}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Dark/Light Mode Toggle */}
             <button 
