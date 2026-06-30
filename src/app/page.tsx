@@ -64,6 +64,8 @@ export default function Home() {
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [helpActiveTab, setHelpActiveTab] = useState<'pitch' | 'guide'>('pitch');
 
   // Company Modal states
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
@@ -1699,7 +1701,10 @@ export default function Home() {
 
         {/* Sidebar Footer */}
         <div className="px-6 space-y-3">
-          <div className="flex items-center gap-4 px-4 py-2.5 text-on-surface-variant hover:text-on-surface cursor-pointer rounded-sm hover:bg-surface-container-high transition-colors">
+          <div 
+            onClick={() => { setIsHelpModalOpen(true); setIsMobileSidebarOpen(false); }}
+            className="flex items-center gap-4 px-4 py-2.5 text-on-surface-variant hover:text-on-surface cursor-pointer rounded-sm hover:bg-surface-container-high transition-colors"
+          >
             <span className="material-symbols-outlined text-[18px]">help</span>
             <span className="text-label-bold font-label-bold">Ayuda & Soporte</span>
           </div>
@@ -2839,6 +2844,188 @@ export default function Home() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ayuda & Soporte */}
+      {isHelpModalOpen && (
+        <div className="fixed inset-0 bg-background/40 backdrop-blur-md flex items-center justify-center z-[999] p-4 animate-fade-in">
+          <div className="bg-surface border border-outline-variant/15 w-full max-w-2xl p-8 rounded-sm shadow-2xl relative text-left flex flex-col max-h-[85vh] overflow-hidden">
+            
+            {/* Header del Modal */}
+            <div className="flex items-center justify-between border-b border-outline-variant/10 pb-4 mb-6 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-sm bg-primary/5 flex items-center justify-center border border-primary/10">
+                  <span className="material-symbols-outlined text-primary text-lg">help</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-primary">Ayuda & Soporte</h3>
+                  <p className="text-[10px] text-on-surface-variant font-medium">Guía interactiva y propuesta de valor de Balance AI</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsHelpModalOpen(false)}
+                className="p-1 rounded-sm hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+
+            {/* Selector de Pestañas del Modal */}
+            <div className="flex border-b border-outline-variant/5 mb-6 shrink-0 gap-2">
+              <button 
+                onClick={() => setHelpActiveTab('pitch')}
+                className={`pb-2 px-3 text-xs font-semibold border-b-2 transition-all focus:outline-none ${
+                  helpActiveTab === 'pitch' 
+                    ? 'border-primary text-primary font-bold' 
+                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                La Revolución Contable
+              </button>
+              <button 
+                onClick={() => setHelpActiveTab('guide')}
+                className={`pb-2 px-3 text-xs font-semibold border-b-2 transition-all focus:outline-none ${
+                  helpActiveTab === 'guide' 
+                    ? 'border-primary text-primary font-bold' 
+                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                Guía de Funcionamiento
+              </button>
+            </div>
+
+            {/* Contenido del Modal (Scrollable) */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0 text-xs text-on-surface-variant leading-relaxed space-y-6">
+              {helpActiveTab === 'pitch' && (
+                <div className="space-y-6 animate-fade-in">
+                  <div className="bg-primary/5 border border-primary/10 rounded-sm p-6 text-center space-y-4">
+                    <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(var(--primary-rgb),0.1)] animate-pulse">
+                      <span className="material-symbols-outlined text-2xl">auto_awesome</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-primary uppercase tracking-wider">El fin de la contabilidad manual</h4>
+                    <p className="text-xs text-on-surface max-w-lg mx-auto font-medium">
+                      ¿Sigues perdiendo horas picando asientos contables a mano o cometiendo molestos errores de transcripción? Es hora de dar el salto al futuro.
+                    </p>
+                    <p className="text-xs text-on-surface-variant max-w-lg mx-auto">
+                      <strong className="text-primary font-bold">Balance AI</strong> es la única solución inteligente diseñada específicamente para transformar facturas, recibos y extractos bancarios en asientos de diario perfectamente cuadrados y listos para importar de forma 100% autónoma.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-outline-variant/10 p-4 rounded-sm space-y-2">
+                      <div className="flex items-center gap-2 text-primary font-bold">
+                        <span className="material-symbols-outlined text-sm">schedule</span>
+                        <span>Productividad del 1000%</span>
+                      </div>
+                      <p className="text-[11px]">
+                        Reduce el tiempo dedicado a la gestión documental de horas a segundos. Sube un documento y deja que nuestra IA haga el trabajo pesado en tiempo real.
+                      </p>
+                    </div>
+
+                    <div className="border border-outline-variant/10 p-4 rounded-sm space-y-2">
+                      <div className="flex items-center gap-2 text-[#006d37] font-bold">
+                        <span className="material-symbols-outlined text-sm">precision_manufacturing</span>
+                        <span>Precisión Quirúrgica</span>
+                      </div>
+                      <p className="text-[11px]">
+                        Nuestra integración avanzada con Gemini minimiza los errores humanos de introducción de datos y cuadra cada debe y haber de forma exacta según los estándares de PGC.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-outline-variant/5 pt-4 text-center">
+                    <p className="font-semibold text-primary mb-3">¿Listo para cambiar las reglas del juego?</p>
+                    <button 
+                      onClick={() => { setIsHelpModalOpen(false); setActiveTab('documents'); }}
+                      className="px-6 py-2.5 bg-primary text-white font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all inline-flex items-center gap-2 shadow-precision"
+                    >
+                      <span>Probar urgentemente</span>
+                      <span className="material-symbols-outlined text-sm">arrow_right_alt</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {helpActiveTab === 'guide' && (
+                <div className="space-y-6 animate-fade-in">
+                  <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Funcionamiento de la Aplicación paso a paso:</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">1</div>
+                      <div>
+                        <h5 className="font-bold text-on-surface text-xs">Creación de Empresa (Multi-Cliente)</h5>
+                        <p className="text-[11px]">
+                          Haz clic en el botón <strong className="font-semibold text-primary">+</strong> en la cabecera para crear una empresa. Balance AI aísla de forma segura todos los datos y documentos por empresa y usuario.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">2</div>
+                      <div>
+                        <h5 className="font-bold text-on-surface text-xs">Carga del Plan Contable (PGC)</h5>
+                        <p className="text-[11px]">
+                          En la pestaña <em>Mis Documentos</em>, importa tu catálogo de subcuentas en CSV o PDF. Balance AI procesará el PDF mediante IA en segundos y creará tu estructura de cuentas de forma automática.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">3</div>
+                      <div>
+                        <h5 className="font-bold text-on-surface text-xs">Subida de Documentos</h5>
+                        <p className="text-[11px]">
+                          Arrastra tus facturas, recibos, tickets o extractos bancarios en la zona de carga de <em>Mis Documentos</em>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">4</div>
+                      <div>
+                        <h5 className="font-bold text-on-surface text-xs">Análisis Inteligente y Generación de Asientos</h5>
+                        <p className="text-[11px]">
+                          Nuestra IA procesará la factura de forma autónoma y generará el asiento del libro de diario totalmente equilibrado, sugiriendo la creación de cuentas contables nuevas si no existían en tu catálogo.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">5</div>
+                      <div>
+                        <h5 className="font-bold text-on-surface text-xs">Auditoría con Chat Inteligente</h5>
+                        <p className="text-[11px]">
+                          En el <em>Panel de Control</em>, selecciona los asientos que deseas auditar y chatea con Gemini para extraer sumas de IVA, clasificar gastos o buscar discrepancias.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">6</div>
+                      <div>
+                        <h5 className="font-bold text-on-surface text-xs">Exportación a Sage ContaPlus</h5>
+                        <p className="text-[11px]">
+                          Selecciona los asientos validados en la tabla y expórtalos en archivos ZIP listos para importar directamente en Sage ContaPlus (versiones 2008 o 2011).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="border-t border-outline-variant/10 pt-4 mt-6 shrink-0 flex justify-end">
+              <button 
+                onClick={() => setIsHelpModalOpen(false)}
+                className="px-5 py-2 bg-surface-container-high border border-outline-variant/10 text-on-surface font-bold text-xs rounded-sm hover:opacity-95 active:scale-[0.98] transition-all focus:outline-none"
+              >
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       )}
