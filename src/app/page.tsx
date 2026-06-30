@@ -2038,34 +2038,34 @@ export default function Home() {
       <main className="flex-1 md:ml-64 flex flex-col h-screen overflow-hidden">
         
         {/* Top Bar Header */}
-        <header className="flex justify-between items-center px-8 w-full shrink-0 h-16 bg-surface border-b border-outline-variant/5">
-          <div className="flex items-center gap-2 md:gap-6 flex-1">
+        <header className="flex justify-between items-center px-4 sm:px-6 md:px-8 w-full shrink-0 h-16 bg-surface border-b border-outline-variant/5">
+          <div className="flex items-center gap-2 md:gap-6 flex-1 min-w-0">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="md:hidden p-1.5 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95 mr-1"
+              className="md:hidden p-1.5 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95 mr-1 shrink-0"
               title="Abrir menú"
             >
               <span className="material-symbols-outlined text-sm font-bold">menu</span>
             </button>
             {activeTab === 'dashboard' && (
-              <div className="flex items-center gap-sm">
-                <span className="font-bold text-headline-md text-primary font-headline-md">Histórico de Documentos</span>
+              <div className="flex items-center gap-sm min-w-0">
+                <span className="font-bold text-sm sm:text-base md:text-headline-md text-primary font-headline-md truncate max-w-[100px] xs:max-w-[160px] sm:max-w-[240px] md:max-w-none">Histórico de Documentos</span>
               </div>
             )}
             {activeTab === 'documents' && (
-              <span className="font-bold text-headline-md text-primary font-headline-md">Carga de Documentos</span>
+              <span className="font-bold text-sm sm:text-base md:text-headline-md text-primary font-headline-md truncate max-w-[100px] xs:max-w-[160px] sm:max-w-[240px] md:max-w-none">Carga de Documentos</span>
             )}
             {activeTab === 'settings' && (
-              <span className="font-bold text-headline-md text-primary font-headline-md">Configuración del Sistema</span>
+              <span className="font-bold text-sm sm:text-base md:text-headline-md text-primary font-headline-md truncate max-w-[100px] xs:max-w-[160px] sm:max-w-[240px] md:max-w-none">Configuración del Sistema</span>
             )}
 
             {/* Separador vertical */}
-            <div className="h-5 w-px bg-outline-variant/20"></div>
+            <div className="h-5 w-px bg-outline-variant/20 shrink-0"></div>
 
             {/* Selector de empresa */}
-            <div className="flex items-center gap-2 select-none">
-              <span className="material-symbols-outlined text-[16px] text-on-surface-variant">domain</span>
-              <div className="relative flex items-center">
+            <div className="flex items-center gap-1.5 sm:gap-2 select-none min-w-0">
+              <span className="material-symbols-outlined text-[16px] text-on-surface-variant shrink-0">domain</span>
+              <div className="relative flex items-center min-w-0">
                 <select
                   value={selectedCompanyId}
                   onChange={(e) => {
@@ -2073,7 +2073,7 @@ export default function Home() {
                     setSelectedCompanyId(cid);
                     localStorage.setItem('active_company_id', cid);
                   }}
-                  className="bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none min-w-[150px] transition-colors"
+                  className="bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none min-w-[90px] sm:min-w-[150px] max-w-[120px] xs:max-w-[150px] sm:max-w-[220px] transition-colors truncate"
                 >
                   {companies.length === 0 ? (
                     <option value="">Cargando empresas...</option>
@@ -2089,7 +2089,7 @@ export default function Home() {
               </div>
               <button
                 onClick={() => setIsCreateCompanyModalOpen(true)}
-                className="p-1 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95"
+                className="p-1 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95 shrink-0"
                 title="Crear nueva empresa"
               >
                 <span className="material-symbols-outlined text-sm font-bold">add</span>
@@ -2097,7 +2097,7 @@ export default function Home() {
               {selectedCompanyId && (
                 <button
                   onClick={handleDeleteCompany}
-                  className="p-1 rounded-sm border border-outline-variant/15 hover:bg-error/5 hover:border-error/30 text-error flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95"
+                  className="p-1 rounded-sm border border-outline-variant/15 hover:bg-error/5 hover:border-error/30 text-error flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95 shrink-0"
                   title="Eliminar empresa activa"
                 >
                   <span className="material-symbols-outlined text-sm">delete</span>
@@ -2106,14 +2106,14 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="flex items-center gap-md">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 shrink-0">
             {/* Search Toggle Icon */}
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-sm pointer-events-none">search</span>
               <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-surface-container-low border border-outline-variant/10 rounded-sm py-1 pl-8 pr-3 text-[11px] font-medium w-40 focus:w-56 focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
+                className="bg-surface-container-low border border-outline-variant/10 rounded-sm py-1 pl-8 pr-3 text-[11px] font-medium w-24 xs:w-28 sm:w-36 md:w-40 focus:w-32 xs:focus:w-44 sm:focus:w-52 md:focus:w-56 focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
                 placeholder="Buscar..." 
                 type="text"
               />
@@ -2278,7 +2278,7 @@ export default function Home() {
                 className="w-8 h-8 rounded-full bg-primary-container hover:opacity-90 transition-all flex items-center justify-center overflow-hidden focus:outline-none border border-outline-variant/10"
                 title="Menú de Usuario"
               >
-                <span className="material-symbols-outlined text-[18px] text-white">person</span>
+                <span className="material-symbols-outlined text-[18px] text-white select-none leading-none flex items-center justify-center">person</span>
               </button>
 
               {isUserDropdownOpen && (
