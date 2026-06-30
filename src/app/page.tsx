@@ -63,6 +63,7 @@ export default function Home() {
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Company Modal states
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
@@ -1628,8 +1629,18 @@ export default function Home() {
         </div>
       )}
 
+      {/* Backdrop para móviles */}
+      {isMobileSidebarOpen && (
+        <div 
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-background/40 backdrop-blur-md z-40 md:hidden animate-fade-in"
+        />
+      )}
+
       {/* SideNavBar */}
-      <aside className="fixed left-0 top-0 h-full z-40 py-8 flex flex-col justify-between w-64 bg-surface-container-low border-r border-outline-variant/5">
+      <aside className={`fixed left-0 top-0 h-full z-50 py-8 flex flex-col justify-between w-64 bg-surface-container-low border-r border-outline-variant/5 transition-transform duration-300 md:translate-x-0 ${
+        isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         <div className="px-6">
           {/* Logo & Brand Header - Centrado y Grande (x4), sin letras ni cajas pesadas */}
           <div className="flex justify-center mb-10 pt-4 select-none">
@@ -1641,7 +1652,7 @@ export default function Home() {
           {/* Navigation Links */}
           <nav className="space-y-3">
             <button 
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => { setActiveTab('dashboard'); setIsMobileSidebarOpen(false); }}
               className={`w-full flex items-center gap-4 px-4 py-2.5 rounded-sm transition-all duration-200 ${
                 activeTab === 'dashboard' 
                   ? 'text-on-secondary-container bg-secondary-container/20 font-semibold' 
@@ -1653,7 +1664,7 @@ export default function Home() {
             </button>
 
             <button 
-              onClick={() => setActiveTab('documents')}
+              onClick={() => { setActiveTab('documents'); setIsMobileSidebarOpen(false); }}
               className={`w-full flex items-center gap-4 px-4 py-2.5 rounded-sm transition-all duration-200 ${
                 activeTab === 'documents' 
                   ? 'text-on-secondary-container bg-secondary-container/20 font-semibold' 
@@ -1665,7 +1676,7 @@ export default function Home() {
             </button>
 
             <button 
-              onClick={() => setActiveTab('settings')}
+              onClick={() => { setActiveTab('settings'); setIsMobileSidebarOpen(false); }}
               className={`w-full flex items-center gap-4 px-4 py-2.5 rounded-sm transition-all duration-200 ${
                 activeTab === 'settings' 
                   ? 'text-on-secondary-container bg-secondary-container/20 font-semibold' 
@@ -1678,7 +1689,7 @@ export default function Home() {
           </nav>
 
           <button 
-            onClick={() => setActiveTab('documents')}
+            onClick={() => { setActiveTab('documents'); setIsMobileSidebarOpen(false); }}
             className="mt-8 w-full flex items-center justify-center gap-sm bg-primary text-white py-2.5 rounded-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all"
           >
             <span className="material-symbols-outlined text-[18px] text-white">add</span>
@@ -1698,6 +1709,7 @@ export default function Home() {
                 await supabase.auth.signOut();
               }
               setIsLoggedIn(false);
+              setIsMobileSidebarOpen(false);
             }}
             className="flex items-center gap-4 px-4 py-2.5 text-on-surface-variant hover:text-error cursor-pointer rounded-sm hover:bg-error-container/10 transition-colors"
           >
@@ -1730,11 +1742,18 @@ export default function Home() {
       </aside>
 
       {/* Main Canvas */}
-      <main className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 md:ml-64 flex flex-col h-screen overflow-hidden">
         
         {/* Top Bar Header */}
         <header className="flex justify-between items-center px-8 w-full shrink-0 h-16 bg-surface border-b border-outline-variant/5">
-          <div className="flex items-center gap-6 flex-1">
+          <div className="flex items-center gap-2 md:gap-6 flex-1">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="md:hidden p-1.5 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95 mr-1"
+              title="Abrir menú"
+            >
+              <span className="material-symbols-outlined text-sm font-bold">menu</span>
+            </button>
             {activeTab === 'dashboard' && (
               <div className="flex items-center gap-sm">
                 <span className="font-bold text-headline-md text-primary font-headline-md">Histórico de Documentos</span>
@@ -1926,7 +1945,7 @@ export default function Home() {
             <div className="flex-1 flex flex-col gap-8 min-h-0 overflow-hidden pt-4">
               
               {/* Fila de Tarjetas KPI - Más altas, espaciadas y con sombras sutiles */}
-              <div className="grid grid-cols-3 gap-8 shrink-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 shrink-0">
                 {/* KPI 1 */}
                 <div className="bg-surface p-6 rounded-sm border border-outline-variant/10 text-left flex flex-col justify-between h-[96px] shadow-precision">
                   <span className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Documentos Procesados</span>
@@ -1956,8 +1975,8 @@ export default function Home() {
               </div>
 
               {/* Fila de Filtros y Acciones - Más espaciada y limpia */}
-              <div className="flex justify-between items-center bg-surface px-6 py-3.5 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
+                <div className="flex flex-wrap items-center gap-3">
                   {/* Status Filter Dropdown */}
                   <div className="relative">
                     <button 
@@ -2075,7 +2094,7 @@ export default function Home() {
 
               {/* Tabla de Historial de Documentos */}
               <section className="flex-1 flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden min-h-0 shadow-precision">
-                <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
                   {isLoading ? (
                     <div className="h-full w-full flex items-center justify-center py-10 text-on-surface-variant text-xs">
                       <span className="animate-spin material-symbols-outlined mr-2 text-xs">progress_activity</span>
