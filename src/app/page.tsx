@@ -1992,7 +1992,7 @@ export default function Home() {
             <input 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface border border-outline-variant/10 rounded-sm py-2 pl-8 pr-3 text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
+              className="w-full bg-surface border border-outline-variant/10 rounded-sm py-2 pl-8 pr-3 text-[16px] font-medium focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
               placeholder="Buscar documentos..." 
               type="text"
             />
@@ -2127,14 +2127,23 @@ export default function Home() {
             </button>
             {activeTab === 'dashboard' && (
               <div className="flex items-center gap-sm min-w-0">
-                <span className="font-bold text-sm sm:text-base md:text-headline-md text-primary font-headline-md truncate max-w-[100px] xs:max-w-[160px] sm:max-w-[240px] md:max-w-none">Histórico de Documentos</span>
+                <span className="font-bold text-sm md:text-headline-md text-primary font-headline-md truncate">
+                  <span className="md:hidden">Historial</span>
+                  <span className="hidden md:inline">Histórico de Documentos</span>
+                </span>
               </div>
             )}
             {activeTab === 'documents' && (
-              <span className="font-bold text-sm sm:text-base md:text-headline-md text-primary font-headline-md truncate max-w-[100px] xs:max-w-[160px] sm:max-w-[240px] md:max-w-none">Carga de Documentos</span>
+              <span className="font-bold text-sm md:text-headline-md text-primary font-headline-md truncate">
+                <span className="md:hidden">Mis Documentos</span>
+                <span className="hidden md:inline">Carga de Documentos</span>
+              </span>
             )}
             {activeTab === 'settings' && (
-              <span className="font-bold text-sm sm:text-base md:text-headline-md text-primary font-headline-md truncate max-w-[100px] xs:max-w-[160px] sm:max-w-[240px] md:max-w-none">Configuración del Sistema</span>
+              <span className="font-bold text-sm md:text-headline-md text-primary font-headline-md truncate">
+                <span className="md:hidden">Configuración</span>
+                <span className="hidden md:inline">Configuración del Sistema</span>
+              </span>
             )}
 
             {/* Separador vertical */}
@@ -2191,7 +2200,7 @@ export default function Home() {
               <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-surface-container-low border border-outline-variant/10 rounded-sm py-1 pl-8 pr-3 text-[11px] font-medium w-24 xs:w-28 sm:w-36 md:w-40 focus:w-32 xs:focus:w-44 sm:focus:w-52 md:focus:w-56 focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
+                className="bg-surface-container-low border border-outline-variant/10 rounded-sm py-1 pl-8 pr-3 text-[16px] sm:text-[11px] font-medium w-24 xs:w-28 sm:w-36 md:w-40 focus:w-32 xs:focus:w-44 sm:focus:w-52 md:focus:w-56 focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
                 placeholder="Buscar..." 
                 type="text"
               />
@@ -2418,7 +2427,7 @@ export default function Home() {
         </header>
 
         {/* Dynamic Tab Content Area */}
-        <div className="flex-1 overflow-hidden flex flex-col p-lg gap-lg min-h-0">
+        <div className="flex-1 overflow-hidden flex flex-col p-lg pb-[76px] md:pb-lg gap-lg min-h-0">
           
           {/* ESTADO VACÍO CUANDO NO HAY EMPRESAS */}
           {companies.length === 0 && !isLoading && activeTab !== 'settings' && (
@@ -2891,7 +2900,7 @@ export default function Home() {
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
                       disabled={isChatLoading}
-                      className="flex-1 bg-transparent py-3 text-sm focus:outline-none disabled:opacity-60 text-on-surface placeholder:text-on-surface-variant/60" 
+                      className="flex-1 bg-transparent py-3 text-[16px] md:text-sm focus:outline-none disabled:opacity-60 text-on-surface placeholder:text-on-surface-variant/60" 
                       placeholder={selectedDocIds.length > 0 
                         ? "Preguntar sobre filas seleccionadas..." 
                         : "Escribe tu consulta al asistente contable..."
@@ -3737,9 +3746,48 @@ export default function Home() {
         </div>
       )}
 
+      {/* Menú de Navegación Inferior Móvil (Bottom Navigation Bar) */}
+      <div className="fixed bottom-0 left-0 w-full h-16 z-40 bg-surface border-t border-outline-variant/10 md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.03)] backdrop-blur-md bg-surface/90 flex justify-around items-center px-4">
+        <button 
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex flex-col items-center justify-center gap-1 w-20 h-full transition-all focus:outline-none ${
+            activeTab === 'dashboard' ? 'text-primary font-bold animate-in fade-in duration-200' : 'text-on-surface-variant/70 hover:text-primary'
+          }`}
+        >
+          <span className={`material-symbols-outlined text-[20px] ${activeTab === 'dashboard' ? 'material-symbols-fill text-primary' : ''}`}>
+            dashboard
+          </span>
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Panel</span>
+        </button>
+        
+        <button 
+          onClick={() => setActiveTab('documents')}
+          className={`flex flex-col items-center justify-center gap-1 w-20 h-full transition-all focus:outline-none ${
+            activeTab === 'documents' ? 'text-primary font-bold animate-in fade-in duration-200' : 'text-on-surface-variant/70 hover:text-primary'
+          }`}
+        >
+          <span className={`material-symbols-outlined text-[20px] ${activeTab === 'documents' ? 'material-symbols-fill text-primary' : ''}`}>
+            description
+          </span>
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Documentos</span>
+        </button>
+        
+        <button 
+          onClick={() => setActiveTab('settings')}
+          className={`flex flex-col items-center justify-center gap-1 w-20 h-full transition-all focus:outline-none ${
+            activeTab === 'settings' ? 'text-primary font-bold animate-in fade-in duration-200' : 'text-on-surface-variant/70 hover:text-primary'
+          }`}
+        >
+          <span className={`material-symbols-outlined text-[20px] ${activeTab === 'settings' ? 'material-symbols-fill text-primary' : ''}`}>
+            settings
+          </span>
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Ajustes</span>
+        </button>
+      </div>
+
       {/* Banner de error de conexión con Supabase */}
       {supabaseStatus === 'error' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-red-600 text-white py-1.5 px-4 text-center text-xs font-semibold select-none z-[9999] shadow-[0_-2px_10px_rgba(0,0,0,0.2)]">
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-red-600 text-white py-1.5 px-4 text-center text-xs font-semibold select-none z-[9999] shadow-[0_-2px_10px_rgba(0,0,0,0.2)] animate-slide-in">
           ⚠️ Pérdida de conexión con Supabase o la base de datos.
         </div>
       )}
