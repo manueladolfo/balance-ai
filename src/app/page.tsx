@@ -31,6 +31,8 @@ export default function Home() {
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'settings'>('dashboard');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -918,16 +920,28 @@ export default function Home() {
                 <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="password-login">
                   Contraseña
                 </label>
-                <input 
-                  id="password-login"
-                  type="password"
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                  required
-                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
-                  placeholder="••••••••"
-                  disabled={isAuthLoading}
-                />
+                <div className="relative">
+                  <input 
+                    id="password-login"
+                    type={showLoginPassword ? "text" : "password"}
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    required
+                    className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 pr-10 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                    placeholder="••••••••"
+                    disabled={isAuthLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus:ring-0 select-none"
+                    title={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showLoginPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* Iniciar Sesion Button */}
@@ -1017,17 +1031,29 @@ export default function Home() {
                 <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="reg-password">
                   Contraseña (min. 6 caracteres)
                 </label>
-                <input 
-                  id="reg-password"
-                  type="password"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
-                  placeholder="••••••••"
-                  disabled={isAuthLoading}
-                />
+                <div className="relative">
+                  <input 
+                    id="reg-password"
+                    type={showRegPassword ? "text" : "password"}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 pr-10 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                    placeholder="••••••••"
+                    disabled={isAuthLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus:ring-0 select-none"
+                    title={showRegPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showRegPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* Registrarse Button */}
