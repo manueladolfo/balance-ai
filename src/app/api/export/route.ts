@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserIdFromRequest } from '@/lib/auth';
 import JSZip from 'jszip';
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { documentIds, version = '2008', format = 'txt' } = await req.json();
 
     if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
@@ -12,6 +18,33 @@ export async function POST(req: NextRequest) {
 
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
+    }
+
+    // Verify documents belong to companies owned by the authenticated user
+    const { data: docs, error: checkError } = await supabaseAdmin
+      .from('documents')
+      .select('company_id')
+      .in('id', documentIds);
+
+    if (checkError) {
+      console.error('Error checking documents ownership for export:', checkError);
+      return NextResponse.json({ error: 'Error de verificación de permisos.' }, { status: 500 });
+    }
+
+    if (docs && docs.length > 0) {
+      const companyIds = Array.from(new Set(docs.map(d => d.company_id).filter(Boolean)));
+
+      if (companyIds.length > 0) {
+        const { data: userCompanies, error: compCheckError } = await supabaseAdmin
+          .from('companies')
+          .select('id')
+          .in('id', companyIds)
+          .eq('user_id', userId);
+
+        if (compCheckError || !userCompanies || userCompanies.length !== companyIds.length) {
+          return NextResponse.json({ error: 'No autorizado para exportar estos documentos.' }, { status: 403 });
+        }
+      }
     }
 
     // 1. Fetch entries and lines from Supabase

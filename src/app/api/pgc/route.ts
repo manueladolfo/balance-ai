@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,18 +8,35 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
 
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const companyId = searchParams.get('companyId');
 
-    let query = supabaseAdmin.from('pgc_accounts').select('*');
-    if (companyId) {
-      query = query.eq('company_id', companyId);
-    } else {
-      // If no companyId is passed, default to accounts with null company_id (or return empty)
-      query = query.is('company_id', null);
+    if (!companyId) {
+      return NextResponse.json({ error: 'Falta proporcionar el ID de la empresa.' }, { status: 400 });
     }
 
-    const { data: accounts, error } = await query.order('code', { ascending: true });
+    // Verify company ownership
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('id', companyId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      return NextResponse.json({ error: 'No autorizado para acceder al Plan Contable de esta empresa.' }, { status: 403 });
+    }
+
+    const { data: accounts, error } = await supabaseAdmin
+      .from('pgc_accounts')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('code', { ascending: true });
 
     if (error) {
       throw new Error('Error al consultar PGC de Supabase: ' + error.message);
@@ -33,6 +51,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { accounts, companyId } = await req.json(); // Array of { code, description, is_operational }
 
     if (!accounts || !Array.isArray(accounts)) {
@@ -47,6 +70,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
 
+    // Verify company ownership
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('id', companyId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      return NextResponse.json({ error: 'No autorizado para guardar el Plan Contable de esta empresa.' }, { status: 403 });
+    }
+
     // Add company_id to every account
     const mappedAccounts = accounts.map(a => ({
       code: a.code,
@@ -58,7 +93,7 @@ export async function POST(req: NextRequest) {
     // Upsert accounts
     const { error } = await supabaseAdmin
       .from('pgc_accounts')
-      .upsert(mappedAccounts, { onConflict: 'company_id,code' }); // Clave compuesta para evitar conflictos inter-empresa
+      .upsert(mappedAccounts, { onConflict: 'company_id,code' });
 
     if (error) {
       throw new Error('Error al guardar PGC en Supabase: ' + error.message);

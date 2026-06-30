@@ -143,8 +143,15 @@ export default function Home() {
 
   // 1. Fetch companies on mount
   const fetchCompanies = async () => {
+    const client = supabase;
+    if (!client) return;
     try {
-      const res = await fetch('/api/companies');
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch('/api/companies', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
       const data = await res.json();
       if (res.ok && data.companies) {
         setCompanies(data.companies);
@@ -177,9 +184,17 @@ export default function Home() {
       return;
     }
 
+    const client = supabase;
+    if (!client) return;
+
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/documents?companyId=${targetCompanyId}`);
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch(`/api/documents?companyId=${targetCompanyId}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
       const data = await res.json();
       if (res.ok) {
         setDocuments(data.documents || []);
@@ -190,7 +205,9 @@ export default function Home() {
         setSupabaseStatus('error');
       }
 
-      const pgcRes = await fetch(`/api/pgc?companyId=${targetCompanyId}`);
+      const pgcRes = await fetch(`/api/pgc?companyId=${targetCompanyId}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
       const pgcData = await pgcRes.json();
       if (pgcRes.ok) {
         setPgcAccounts(pgcData.accounts || []);
@@ -209,11 +226,22 @@ export default function Home() {
     e.preventDefault();
     if (!newCompanyName.trim()) return;
 
+    const client = supabase;
+    if (!client) return;
+
     try {
       setIsCompanyActionLoading(true);
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
+      }
+
       const res = await fetch('/api/companies', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ name: newCompanyName, cif: newCompanyCif })
       });
 
@@ -234,6 +262,7 @@ export default function Home() {
 
     } catch (err: any) {
       console.error(err);
+      showToast(err.message || 'Error al procesar la solicitud.', 'error');
     } finally {
       setIsCompanyActionLoading(false);
     }
@@ -242,6 +271,9 @@ export default function Home() {
   // 4. Delete the active company
   const handleDeleteCompany = async () => {
     if (!selectedCompanyId) return;
+
+    const client = supabase;
+    if (!client) return;
 
     const companyToDelete = companies.find(c => c.id === selectedCompanyId);
     if (!companyToDelete) return;
@@ -253,8 +285,14 @@ export default function Home() {
 
     try {
       setIsCompanyActionLoading(true);
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
+      }
+
       const res = await fetch(`/api/companies?id=${selectedCompanyId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
 
       const data = await res.json();
@@ -658,10 +696,23 @@ export default function Home() {
       formData.append('companyId', selectedCompanyId);
     }
 
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      setIsUploading(false);
+      return;
+    }
+
     try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
+      }
+
       // Step A: Upload file
       const uploadRes = await fetch('/api/upload', {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
         body: formData
       });
       setUploadProgress(40);
@@ -677,7 +728,10 @@ export default function Home() {
       // Step B: Trigger AI Analysis
       const analyzeRes = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ documentId })
       });
       setUploadProgress(90);
@@ -726,111 +780,58 @@ export default function Home() {
       return;
     }
 
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
     const file = files[0];
     const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
 
-    if (isPdf) {
-      setIsUploading(true);
-      setUploadProgress(10);
-      setProcessingFileName(file.name);
-
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('subaccountDigits', subaccountDigits.toString());
-        formData.append('companyId', selectedCompanyId);
-
-        setUploadProgress(30);
-        const res = await fetch('/api/pgc/upload-pdf', {
-          method: 'POST',
-          body: formData
-        });
-        setUploadProgress(70);
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Error al procesar el Plan Contable en PDF.');
-        }
-
-        setUploadProgress(90);
-        showToast(data.message || `Se han importado ${data.count} cuentas al Plan Contable.`, 'success');
-
-        // Reload PGC
-        const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`);
-        const pgcData = await pgcRes.json();
-        if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
-
-      } catch (err: any) {
-        console.error(err);
-        showToast(err.message || 'Error al procesar el archivo PDF del PGC.', 'error');
-      } finally {
-        setUploadProgress(100);
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadProgress(0);
-          setProcessingFileName('');
-        }, 1000);
+    try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
       }
-    } else {
-      const reader = new FileReader();
 
-      reader.onload = async (event) => {
-        const text = event.target?.result as string;
-        if (!text) return;
+      if (isPdf) {
+        setIsUploading(true);
+        setUploadProgress(10);
+        setProcessingFileName(file.name);
 
         try {
-          // Simple CSV parser: code,description
-          const lines = text.split('\n');
-          const accounts = [];
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('subaccountDigits', subaccountDigits.toString());
+          formData.append('companyId', selectedCompanyId);
 
-          for (const line of lines) {
-            const parts = line.split(',');
-            if (parts.length >= 2) {
-              const code = parts[0].trim().replace(/"/g, '');
-              const description = parts[1].trim().replace(/"/g, '');
-              if (code && description) {
-                // Mark as operational if length matches digit configurations
-                const cleanCode = code.replace(/\./g, '');
-                const isOperational = cleanCode.length >= subaccountDigits;
-                accounts.push({
-                  code,
-                  description,
-                  is_operational: isOperational
-                });
-              }
-            }
-          }
-
-          if (accounts.length === 0) {
-            throw new Error('No se detectaron cuentas válidas. Formato requerido: "codigo,descripcion" por línea.');
-          }
-
-          setIsUploading(true);
           setUploadProgress(30);
-          setProcessingFileName(file.name);
-
-          const res = await fetch('/api/pgc', {
+          const res = await fetch('/api/pgc/upload-pdf', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accounts, companyId: selectedCompanyId })
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+            body: formData
           });
+          setUploadProgress(70);
 
-          setUploadProgress(80);
-
-          if (res.ok) {
-            showToast(`Se han importado ${accounts.length} subcuentas al Plan Contable.`, 'success');
-            // Reload PGC
-            const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`);
-            const pgcData = await pgcRes.json();
-            if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
-          } else {
-            const data = await res.json();
-            throw new Error(data.error || 'Error al guardar el plan contable.');
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Error al procesar el Plan Contable en PDF.');
           }
+
+          setUploadProgress(90);
+          showToast(data.message || `Se han importado ${data.count} cuentas al Plan Contable.`, 'success');
+
+          // Reload PGC
+          const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`, {
+            headers: { 'Authorization': `Bearer ${session.access_token}` }
+          });
+          const pgcData = await pgcRes.json();
+          if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
 
         } catch (err: any) {
           console.error(err);
-          showToast(err.message || 'Error al procesar el archivo PGC.', 'error');
+          showToast(err.message || 'Error al procesar el archivo PDF del PGC.', 'error');
         } finally {
           setUploadProgress(100);
           setTimeout(() => {
@@ -839,9 +840,86 @@ export default function Home() {
             setProcessingFileName('');
           }, 1000);
         }
-      };
+      } else {
+        const reader = new FileReader();
 
-      reader.readAsText(file);
+        reader.onload = async (event) => {
+          const text = event.target?.result as string;
+          if (!text) return;
+
+          try {
+            // Simple CSV parser: code,description
+            const lines = text.split('\n');
+            const accounts = [];
+
+            for (const line of lines) {
+              const parts = line.split(',');
+              if (parts.length >= 2) {
+                const code = parts[0].trim().replace(/"/g, '');
+                const description = parts[1].trim().replace(/"/g, '');
+                if (code && description) {
+                  // Mark as operational if length matches digit configurations
+                  const cleanCode = code.replace(/\./g, '');
+                  const isOperational = cleanCode.length >= subaccountDigits;
+                  accounts.push({
+                    code,
+                    description,
+                    is_operational: isOperational
+                  });
+                }
+              }
+            }
+
+            if (accounts.length === 0) {
+              throw new Error('No se detectaron cuentas válidas. Formato requerido: "codigo,descripcion" por línea.');
+            }
+
+            setIsUploading(true);
+            setUploadProgress(30);
+            setProcessingFileName(file.name);
+
+            const res = await fetch('/api/pgc', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({ accounts, companyId: selectedCompanyId })
+            });
+
+            setUploadProgress(80);
+
+            if (res.ok) {
+              showToast(`Se han importado ${accounts.length} subcuentas al Plan Contable.`, 'success');
+              // Reload PGC
+              const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+              });
+              const pgcData = await pgcRes.json();
+              if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
+            } else {
+              const data = await res.json();
+              throw new Error(data.error || 'Error al guardar el plan contable.');
+            }
+
+          } catch (err: any) {
+            console.error(err);
+            showToast(err.message || 'Error al procesar el archivo PGC.', 'error');
+          } finally {
+            setUploadProgress(100);
+            setTimeout(() => {
+              setIsUploading(false);
+              setUploadProgress(0);
+              setProcessingFileName('');
+            }, 1000);
+          }
+        };
+
+        reader.readAsText(file);
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Error de autenticación al importar el Plan Contable.', 'error');
     }
   };
 
@@ -876,10 +954,25 @@ export default function Home() {
     setChatInput('');
     setIsChatLoading(true);
 
+    const client = supabase;
+    if (!client) {
+      setChatMessages(prev => [...prev, { sender: 'ai', text: 'Error: Supabase no está configurado.' }]);
+      setIsChatLoading(false);
+      return;
+    }
+
     try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
+      }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           message: userMessage,
           selectedDocumentIds: selectedDocIds
@@ -907,11 +1000,25 @@ export default function Home() {
       return;
     }
 
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
     try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
+      }
+
       showToast(`Generando archivos para Sage ContaPlus ${version} (${format.toUpperCase()})...`, 'info');
       const res = await fetch('/api/export', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ 
           documentIds: selectedDocIds,
           version,
@@ -1086,11 +1193,25 @@ export default function Home() {
 
   // 8. Approve and Contabilizar (PUT)
   const handleApproveDocument = async (documentId: string) => {
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
     try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
+      }
+
       showToast('Aprobando y registrando asiento contable...', 'info');
       const res = await fetch('/api/documents', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ documentId, status: 'completed' })
       });
 
@@ -1780,8 +1901,28 @@ export default function Home() {
         {/* Dynamic Tab Content Area */}
         <div className="flex-1 overflow-hidden flex flex-col p-lg gap-lg min-h-0">
           
+          {/* ESTADO VACÍO CUANDO NO HAY EMPRESAS */}
+          {companies.length === 0 && !isLoading && activeTab !== 'settings' && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-surface rounded-sm border border-outline-variant/10 shadow-precision max-w-md mx-auto my-auto gap-4 select-none animate-fade-in">
+              <div className="w-12 h-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
+                <span className="material-symbols-outlined text-primary text-xl">domain</span>
+              </div>
+              <h2 className="text-sm font-bold text-primary">Comienza con tu primera empresa</h2>
+              <p className="text-xs text-on-surface-variant max-w-xs leading-relaxed">
+                Para comenzar a procesar tus facturas, recibos y extractos bancarios, primero debes dar de alta la empresa en la que vas a trabajar.
+              </p>
+              <button
+                onClick={() => setIsCreateCompanyModalOpen(true)}
+                className="mt-2 px-6 py-2 bg-primary text-white text-xs font-semibold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all flex items-center gap-2 shadow-precision focus:outline-none"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">add</span>
+                <span>Crear Empresa</span>
+              </button>
+            </div>
+          )}
+
           {/* TAB 1: PANEL DE CONTROL (HISTORIAL Y CHAT HORIZONTAL ABAJO) */}
-          {activeTab === 'dashboard' && (
+          {companies.length > 0 && activeTab === 'dashboard' && (
             <div className="flex-1 flex flex-col gap-8 min-h-0 overflow-hidden pt-4">
               
               {/* Fila de Tarjetas KPI - Más altas, espaciadas y con sombras sutiles */}
@@ -2159,7 +2300,7 @@ export default function Home() {
           )}
 
           {/* TAB 2: CARGA Y CONFIGURACIÓN (DETALLADA) */}
-          {activeTab === 'documents' && (
+          {companies.length > 0 && activeTab === 'documents' && (
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-8 min-h-0 pt-4 pb-12">
               
               <div className="mb-4 text-left select-none">

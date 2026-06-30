@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 const geminiApiKey = process.env.GEMINI_API_KEY || '';
 const genAI = geminiApiKey && geminiApiKey !== 'your_google_gemini_api_key'
@@ -17,6 +18,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'La API Key de Gemini no está configurada.' }, { status: 412 });
     }
 
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const subaccountDigitsStr = formData.get('subaccountDigits');
@@ -29,6 +35,18 @@ export async function POST(req: NextRequest) {
 
     if (!companyId) {
       return NextResponse.json({ error: 'Falta proporcionar el ID de la empresa.' }, { status: 400 });
+    }
+
+    // Verify company ownership
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('id', companyId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      return NextResponse.json({ error: 'No autorizado para guardar el Plan Contable de esta empresa.' }, { status: 403 });
     }
 
     const bytes = await file.arrayBuffer();

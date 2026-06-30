@@ -3,9 +3,10 @@
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 0. Create companies table
+-- 0. Create companies table (scoped to owner user_id)
 CREATE TABLE IF NOT EXISTS public.companies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL UNIQUE,
     cif TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.pgc_accounts (
 );
 
 -- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_companies_user_id ON public.companies(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_company_id ON public.documents(company_id);
 CREATE INDEX IF NOT EXISTS idx_entries_document_id ON public.accounting_entries(document_id);
 CREATE INDEX IF NOT EXISTS idx_lines_entry_id ON public.entry_lines(entry_id);
@@ -69,12 +71,13 @@ ALTER TABLE public.accounting_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.entry_lines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pgc_accounts ENABLE ROW LEVEL SECURITY;
 
--- Create Public Access Policies (for testing and MVP purposes)
-CREATE POLICY "Allow public read companies" ON public.companies FOR SELECT USING (true);
-CREATE POLICY "Allow public insert companies" ON public.companies FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update companies" ON public.companies FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete companies" ON public.companies FOR DELETE USING (true);
+-- Create Policies (restricted by user ownership for companies)
+CREATE POLICY "Allow user read own companies" ON public.companies FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Allow user insert own companies" ON public.companies FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow user update own companies" ON public.companies FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Allow user delete own companies" ON public.companies FOR DELETE USING (auth.uid() = user_id);
 
+-- Public access policies for testing/MVP. Data isolation is strictly verified at API level in the backend.
 CREATE POLICY "Allow public read documents" ON public.documents FOR SELECT USING (true);
 CREATE POLICY "Allow public insert documents" ON public.documents FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update documents" ON public.documents FOR UPDATE USING (true);

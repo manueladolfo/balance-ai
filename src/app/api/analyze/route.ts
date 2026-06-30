@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 // Initialize Gemini client if API key is provided
 const geminiApiKey = process.env.GEMINI_API_KEY || '';
@@ -11,6 +12,11 @@ const genAI = geminiApiKey && geminiApiKey !== 'your_google_gemini_api_key'
 export async function POST(req: NextRequest) {
   let docIdForErrorUpdate = '';
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { documentId } = await req.json();
 
     if (!documentId) {
@@ -40,6 +46,20 @@ export async function POST(req: NextRequest) {
 
     if (docError || !doc) {
       return NextResponse.json({ error: 'No se encontró el documento en la base de datos.' }, { status: 404 });
+    }
+
+    // Verify company ownership
+    if (doc.company_id) {
+      const { data: company, error: companyError } = await supabaseAdmin
+        .from('companies')
+        .select('id')
+        .eq('id', doc.company_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (companyError || !company) {
+        return NextResponse.json({ error: 'No autorizado para analizar documentos de esta empresa.' }, { status: 403 });
+      }
     }
 
     docName = doc.name;

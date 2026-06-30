@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
+    }
+
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const type = (formData.get('type') as 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro') || 'Factura';
@@ -12,8 +22,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No se ha proporcionado ningún archivo.' }, { status: 400 });
     }
 
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
+    if (!companyId) {
+      return NextResponse.json({ error: 'Falta proporcionar el ID de la empresa.' }, { status: 400 });
+    }
+
+    // Verify company ownership
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('id', companyId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      return NextResponse.json({ error: 'No autorizado para subir documentos a esta empresa.' }, { status: 403 });
     }
 
     const name = file.name;
@@ -51,7 +73,7 @@ export async function POST(req: NextRequest) {
         storage_path: storagePath,
         status: 'pending',
         type,
-        company_id: companyId || null
+        company_id: companyId
       })
       .select()
       .single();

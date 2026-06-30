@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 const geminiApiKey = process.env.GEMINI_API_KEY || '';
 const genAI = geminiApiKey && geminiApiKey !== 'your_google_gemini_api_key'
@@ -9,6 +10,11 @@ const genAI = geminiApiKey && geminiApiKey !== 'your_google_gemini_api_key'
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { message, selectedDocumentIds } = await req.json();
 
     if (!message) {
@@ -26,6 +32,33 @@ export async function POST(req: NextRequest) {
     let contextData = '';
 
     if (selectedDocumentIds && Array.isArray(selectedDocumentIds) && selectedDocumentIds.length > 0) {
+      // Verify documents belong to companies owned by the authenticated user
+      const { data: docs, error: checkError } = await supabaseAdmin
+        .from('documents')
+        .select('company_id')
+        .in('id', selectedDocumentIds);
+
+      if (checkError) {
+        console.error('Error checking documents ownership:', checkError);
+        return NextResponse.json({ error: 'Error de verificación de permisos.' }, { status: 500 });
+      }
+
+      if (docs && docs.length > 0) {
+        const companyIds = Array.from(new Set(docs.map(d => d.company_id).filter(Boolean)));
+
+        if (companyIds.length > 0) {
+          const { data: userCompanies, error: compCheckError } = await supabaseAdmin
+            .from('companies')
+            .select('id')
+            .in('id', companyIds)
+            .eq('user_id', userId);
+
+          if (compCheckError || !userCompanies || userCompanies.length !== companyIds.length) {
+            return NextResponse.json({ error: 'No autorizado para consultar estos documentos.' }, { status: 403 });
+          }
+        }
+      }
+
       // Fetch entries and lines for context from Supabase
       const { data: dbEntries, error: dbError } = await supabaseAdmin
         .from('accounting_entries')

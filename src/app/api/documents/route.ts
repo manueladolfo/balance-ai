@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,15 +8,36 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
 
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const companyId = searchParams.get('companyId');
 
-    // Fetch documents (filter by company_id if provided)
-    let docQuery = supabaseAdmin.from('documents').select('*');
-    if (companyId) {
-      docQuery = docQuery.eq('company_id', companyId);
+    if (!companyId) {
+      return NextResponse.json({ error: 'Falta especificar el ID de la empresa.' }, { status: 400 });
     }
-    const { data: documents, error: docError } = await docQuery.order('created_at', { ascending: false });
+
+    // Verify company ownership
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('id', companyId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      return NextResponse.json({ error: 'No autorizado para acceder a esta empresa.' }, { status: 403 });
+    }
+
+    // Fetch documents belonging to the verified company
+    const { data: documents, error: docError } = await supabaseAdmin
+      .from('documents')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
 
     if (docError) {
       throw new Error('Error al consultar documentos de Supabase: ' + docError.message);
@@ -41,20 +63,18 @@ export async function GET(req: NextRequest) {
         )
       `);
 
-    if (companyId) {
-      if (documents && documents.length > 0) {
-        const docIds = documents.map(d => d.id);
-        entryQuery = entryQuery.in('document_id', docIds);
-      } else {
-        // If there are no documents for this company, there can be no entries
-        const hasGeminiKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_google_gemini_api_key';
-        return NextResponse.json({
-          documents: [],
-          entries: [],
-          supabase: true,
-          hasGeminiKey
-        });
-      }
+    if (documents && documents.length > 0) {
+      const docIds = documents.map(d => d.id);
+      entryQuery = entryQuery.in('document_id', docIds);
+    } else {
+      // If there are no documents, there are no entries
+      const hasGeminiKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_google_gemini_api_key';
+      return NextResponse.json({
+        documents: [],
+        entries: [],
+        supabase: true,
+        hasGeminiKey
+      });
     }
 
     const { data: entries, error: entryError } = await entryQuery;
@@ -90,6 +110,11 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { documentId, status } = await req.json();
     if (!documentId || !status) {
       return NextResponse.json({ error: 'Faltan parámetros: documentId y status.' }, { status: 400 });
@@ -97,6 +122,31 @@ export async function PUT(req: NextRequest) {
 
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
+    }
+
+    // Retrieve document first to check its company_id
+    const { data: doc, error: docError } = await supabaseAdmin
+      .from('documents')
+      .select('company_id')
+      .eq('id', documentId)
+      .single();
+
+    if (docError || !doc) {
+      return NextResponse.json({ error: 'No se encontró el documento.' }, { status: 404 });
+    }
+
+    if (doc.company_id) {
+      // Verify that this company belongs to the authenticated user
+      const { data: company, error: companyError } = await supabaseAdmin
+        .from('companies')
+        .select('id')
+        .eq('id', doc.company_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (companyError || !company) {
+        return NextResponse.json({ error: 'No autorizado para modificar este documento.' }, { status: 403 });
+      }
     }
 
     const { data, error } = await supabaseAdmin

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,9 +8,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 500 });
     }
 
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { data: companies, error } = await supabaseAdmin
       .from('companies')
       .select('*')
+      .eq('user_id', userId)
       .order('name', { ascending: true });
 
     if (error) {
@@ -29,6 +36,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 500 });
     }
 
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { name, cif } = await req.json();
 
     if (!name || name.trim() === '') {
@@ -37,7 +49,11 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('companies')
-      .insert({ name: name.trim(), cif: cif ? cif.trim() : null })
+      .insert({ 
+        name: name.trim(), 
+        cif: cif ? cif.trim() : null,
+        user_id: userId
+      })
       .select()
       .single();
 
@@ -61,6 +77,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 500 });
     }
 
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -68,10 +89,12 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Falta proporcionar el ID de la empresa.' }, { status: 400 });
     }
 
+    // Delete company, ensuring it belongs to the authenticated user
     const { error } = await supabaseAdmin
       .from('companies')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) {
       throw new Error('Error al eliminar la empresa en Supabase: ' + error.message);
