@@ -116,7 +116,10 @@ export default function Home() {
 
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing' | 'completed' | 'error'>('all');
-  const [dateFilter, setDateFilter] = useState<'all' | '30days'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | '30days' | '60days' | '90days' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
   // Notifications/Toasts
@@ -1303,11 +1306,32 @@ export default function Home() {
     const matchesStatus = statusFilter === 'all' || doc.status === statusFilter;
 
     let matchesDate = true;
+    const docDate = new Date(doc.created_at);
+    const now = new Date();
+
     if (dateFilter === '30days') {
-      const docDate = new Date(doc.created_at);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      matchesDate = docDate >= thirtyDaysAgo;
+      const limitDate = new Date();
+      limitDate.setDate(now.getDate() - 30);
+      matchesDate = docDate >= limitDate;
+    } else if (dateFilter === '60days') {
+      const limitDate = new Date();
+      limitDate.setDate(now.getDate() - 60);
+      matchesDate = docDate >= limitDate;
+    } else if (dateFilter === '90days') {
+      const limitDate = new Date();
+      limitDate.setDate(now.getDate() - 90);
+      matchesDate = docDate >= limitDate;
+    } else if (dateFilter === 'custom') {
+      if (customStartDate) {
+        const startDate = new Date(customStartDate);
+        startDate.setHours(0, 0, 0, 0);
+        matchesDate = matchesDate && docDate >= startDate;
+      }
+      if (customEndDate) {
+        const endDate = new Date(customEndDate);
+        endDate.setHours(23, 59, 59, 999);
+        matchesDate = matchesDate && docDate <= endDate;
+      }
     }
 
     return matchesSearch && matchesStatus && matchesDate;
@@ -2037,18 +2061,113 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Date Filter Toggle */}
-                  <button 
-                    onClick={() => setDateFilter(prev => prev === 'all' ? '30days' : 'all')}
-                    className={`flex items-center gap-2 px-4 py-1.5 border rounded-sm text-xs font-semibold transition-all focus:outline-none focus:ring-0 ${
-                      dateFilter === '30days'
-                        ? 'bg-primary/5 border-primary/20 text-primary font-bold'
-                        : 'border-outline-variant/10 text-on-surface hover:bg-surface-container-low'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                    Últimos 30 días
-                  </button>
+                  {/* Date Filter Dropdown */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                      className={`flex items-center gap-2 px-4 py-1.5 border rounded-sm text-xs font-semibold transition-all focus:outline-none focus:ring-0 ${
+                        dateFilter !== 'all' 
+                          ? 'bg-primary/5 border-primary/20 text-primary font-bold' 
+                          : 'border-outline-variant/10 text-on-surface hover:bg-surface-container-low'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+                      {dateFilter === 'all' && 'Fecha: Todos'}
+                      {dateFilter === '30days' && 'Últimos 30 días'}
+                      {dateFilter === '60days' && 'Últimos 60 días'}
+                      {dateFilter === '90days' && 'Últimos 90 días'}
+                      {dateFilter === 'custom' && 'Rango personalizado'}
+                      <span className="material-symbols-outlined text-[12px] ml-0.5">expand_more</span>
+                    </button>
+
+                    {isDateDropdownOpen && (
+                      <>
+                        <div 
+                          onClick={() => setIsDateDropdownOpen(false)}
+                          className="fixed inset-0 z-10"
+                        />
+                        <div className="absolute left-0 mt-2 w-64 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-2.5 px-3 text-left space-y-2">
+                          <button 
+                            onClick={() => { setDateFilter('all'); setIsDateDropdownOpen(false); }}
+                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === 'all' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
+                          >
+                            Todos
+                          </button>
+                          <button 
+                            onClick={() => { setDateFilter('30days'); setIsDateDropdownOpen(false); }}
+                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === '30days' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
+                          >
+                            Últimos 30 días
+                          </button>
+                          <button 
+                            onClick={() => { setDateFilter('60days'); setIsDateDropdownOpen(false); }}
+                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === '60days' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
+                          >
+                            Últimos 60 días
+                          </button>
+                          <button 
+                            onClick={() => { setDateFilter('90days'); setIsDateDropdownOpen(false); }}
+                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === '90days' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
+                          >
+                            Últimos 90 días
+                          </button>
+                          <div className="h-px bg-outline-variant/5 my-1"></div>
+                          
+                          {/* Rango Personalizado */}
+                          <div className="space-y-2">
+                            <button 
+                              onClick={() => setDateFilter('custom')}
+                              className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === 'custom' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
+                            >
+                              Rango personalizado...
+                            </button>
+                            
+                            {dateFilter === 'custom' && (
+                              <div className="space-y-2 p-2 bg-surface-container-low/50 rounded-sm border border-outline-variant/5 mt-1 animate-fade-in">
+                                <div className="space-y-1">
+                                  <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Desde:</label>
+                                  <input 
+                                    type="date"
+                                    value={customStartDate}
+                                    onChange={(e) => setCustomStartDate(e.target.value)}
+                                    className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Hasta:</label>
+                                  <input 
+                                    type="date"
+                                    value={customEndDate}
+                                    onChange={(e) => setCustomEndDate(e.target.value)}
+                                    className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none"
+                                  />
+                                </div>
+                                <div className="flex justify-end gap-2 pt-1">
+                                  <button 
+                                    onClick={() => {
+                                      setCustomStartDate('');
+                                      setCustomEndDate('');
+                                      setDateFilter('all');
+                                      setIsDateDropdownOpen(false);
+                                    }}
+                                    className="text-[10px] text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                                  >
+                                    Limpiar
+                                  </button>
+                                  <button 
+                                    onClick={() => setIsDateDropdownOpen(false)}
+                                    className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm hover:opacity-95 active:scale-95 transition-all focus:outline-none"
+                                  >
+                                    Aplicar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="relative">
                   <button 
