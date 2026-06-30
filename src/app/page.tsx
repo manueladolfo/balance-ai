@@ -42,7 +42,7 @@ export default function Home() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
   const [pgcAccounts, setPgcAccounts] = useState<any[]>([]);
-  const [isSupabase, setIsSupabase] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -96,6 +96,28 @@ export default function Home() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // 1. Fetch data on mount
+  const checkSupabaseConnection = async () => {
+    try {
+      const client = supabase;
+      if (!client) {
+        setSupabaseStatus('error');
+        return;
+      }
+      const { error } = await client.from('profiles').select('id').limit(1);
+      if (error) {
+        const status = (error as any).status;
+        if (error.message.includes('fetch') || status === 0 || error.code === 'PGRST000' || status === null || status === 502 || status === 503) {
+          setSupabaseStatus('error');
+          return;
+        }
+      }
+      setSupabaseStatus('connected');
+    } catch (err) {
+      setSupabaseStatus('error');
+    }
+  };
+
+  // 1. Fetch data on mount
   const fetchData = async () => {
     try {
       const res = await fetch('/api/documents');
@@ -103,8 +125,10 @@ export default function Home() {
       if (res.ok) {
         setDocuments(data.documents || []);
         setEntries(data.entries || []);
-        setIsSupabase(data.supabase);
         setHasGeminiKey(data.hasGeminiKey);
+        setSupabaseStatus('connected');
+      } else {
+        setSupabaseStatus('error');
       }
 
       const pgcRes = await fetch('/api/pgc');
@@ -115,6 +139,7 @@ export default function Home() {
     } catch (err) {
       console.error('Error fetching data:', err);
       showToast('Error al conectar con el servidor.', 'error');
+      setSupabaseStatus('error');
     } finally {
       setIsLoading(false);
     }
@@ -122,9 +147,13 @@ export default function Home() {
 
   useEffect(() => {
     fetchData();
+    checkSupabaseConnection();
+
+    // Check connection every 10 seconds
+    const interval = setInterval(checkSupabaseConnection, 10000);
 
     const client = supabase;
-    if (!client) return;
+    if (!client) return () => clearInterval(interval);
 
     // Comprobar sesión activa de Supabase al cargar
     const checkUser = async () => {
@@ -191,6 +220,7 @@ export default function Home() {
     });
 
     return () => {
+      clearInterval(interval);
       subscription.unsubscribe();
     };
   }, []);
@@ -737,33 +767,25 @@ export default function Home() {
     try {
       showToast('Preparando descarga del documento original...', 'info');
       
-      if (isSupabase) {
-        const res = await fetch(`/api/documents?id=${doc.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.downloadUrl) {
-            window.open(data.downloadUrl, '_blank');
-            showToast('Descarga iniciada.', 'success');
-            return;
-          }
-        }
+      const client = supabase;
+      if (!client) {
+        showToast('Supabase no está configurado.', 'error');
+        return;
+      }
+      
+      const { data, error } = await client.storage
+        .from('accounting-docs')
+        .createSignedUrl(doc.storage_path, 60);
+
+      if (error || !data?.signedUrl) {
+        throw new Error(error?.message || 'No se pudo generar la URL de descarga.');
       }
 
-      // Simulación local / fallback
-      const dummyContent = `Documento Contable Original\n==========================\nNombre: ${doc.name}\nTipo: ${doc.type}\nEstado: ${doc.status}\nFecha de Subida: ${doc.created_at}\n\n[Balance AI - Entorno de Simulación Local]`;
-      const blob = new Blob([dummyContent], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.name.includes('.') ? doc.name : `${doc.name}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      showToast('Documento original descargado.', 'success');
+      window.open(data.signedUrl, '_blank');
+      showToast('Descarga iniciada.', 'success');
     } catch (err: any) {
-      console.error(err);
-      showToast('Error al descargar el documento.', 'error');
+      console.error('Error al descargar:', err);
+      showToast('Error al descargar el archivo de Supabase Storage.', 'error');
     }
   };
 
@@ -1266,9 +1288,27 @@ export default function Home() {
             <span className="material-symbols-outlined text-[18px]">logout</span>
             <span className="text-label-bold font-label-bold">Cerrar Sesión</span>
           </div>
-          <div className="flex items-center gap-4 px-4 py-2 text-on-surface-variant rounded">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
-            <span className="text-[10px] font-semibold opacity-80">Local: {isSupabase ? 'Supabase' : 'Simulación'}</span>
+          <div 
+            onClick={checkSupabaseConnection}
+            className="group flex items-center gap-4 px-4 py-2 text-on-surface-variant rounded cursor-pointer select-none hover:bg-surface-container-high transition-colors"
+            title={
+              supabaseStatus === 'connected' ? 'Base de datos en la nube conectada. Haz clic para volver a comprobar.' :
+              supabaseStatus === 'checking' ? 'Comprobando conexión con la base de datos... Por favor, espera.' :
+              'Sin conexión con la base de datos de Supabase. Haz clic para reintentar conectar.'
+            }
+          >
+            <span className={`w-2 h-2 rounded-full animate-pulse transition-colors duration-300 ${
+              supabaseStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
+              supabaseStatus === 'checking' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' :
+              'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'
+            }`}></span>
+            <span className="text-[10px] font-semibold opacity-80 group-hover:opacity-100 transition-opacity">
+              Supabase: {
+                supabaseStatus === 'connected' ? 'Conectado' :
+                supabaseStatus === 'checking' ? 'Verificando...' :
+                'Error de Conexión'
+              }
+            </span>
           </div>
         </div>
       </aside>
@@ -1993,44 +2033,24 @@ export default function Home() {
                       <h3 className="font-bold text-sm text-primary">Base de Datos (Supabase)</h3>
                     </div>
                     <div className="flex items-center">
-                      {isSupabase ? (
+                      {supabaseStatus === 'connected' ? (
                         <span className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase bg-secondary/10 text-secondary rounded-sm">
                           Conectado
                         </span>
+                      ) : supabaseStatus === 'checking' ? (
+                        <span className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase bg-amber-500/10 text-amber-500 rounded-sm">
+                          Verificando...
+                        </span>
                       ) : (
-                        <span className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase bg-surface-container-high text-on-surface-variant/80 rounded-sm">
-                          Simulación Local
+                        <span className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase bg-error/10 text-error rounded-sm">
+                          Error de Conexión
                         </span>
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-on-surface-variant leading-relaxed mb-6">
-                    {isSupabase 
-                      ? 'Los registros de documentos y asientos contables se sincronizan permanentemente con tu base de datos de Supabase en la nube.' 
-                      : 'Operando localmente. Las lecturas y modificaciones se guardan en un archivo JSON en tu entorno local.'}
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    Los registros de documentos y asientos contables se sincronizan permanentemente con tu base de datos de Supabase en la nube.
                   </p>
-                  
-                  <button 
-                    onClick={() => setShowSupabaseHelp(!showSupabaseHelp)} 
-                    className="text-xs text-primary/70 hover:text-primary font-semibold flex items-center gap-1 transition-colors focus:outline-none focus:ring-0"
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      {showSupabaseHelp ? 'expand_less' : 'expand_more'}
-                    </span>
-                    <span>{showSupabaseHelp ? 'Ocultar guía de conexión' : 'Ver guía de conexión'}</span>
-                  </button>
-
-                  {showSupabaseHelp && (
-                    <div className="mt-6 bg-surface-container-low p-6 rounded-sm border-l-2 border-primary/30 text-xs leading-relaxed text-on-surface-variant transition-all duration-200">
-                      <span className="font-semibold text-primary block mb-3 text-xs">Guía de instalación rápida:</span>
-                      <ol className="list-decimal pl-4 space-y-2 text-xs">
-                        <li>Crea un proyecto en tu panel de control de Supabase.</li>
-                        <li>Ejecuta el script SQL ubicado en <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">supabase/schema.sql</code>.</li>
-                        <li>Crea un bucket de Storage llamado <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">accounting-docs</code> con políticas de lectura/escritura públicas.</li>
-                        <li>Configura las variables de conexión en tu archivo local de variables de entorno <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">.env.local</code>.</li>
-                      </ol>
-                    </div>
-                  )}
                 </div>
 
                 {/* Gemini Status Card */}
@@ -2055,7 +2075,7 @@ export default function Home() {
                   <p className="text-xs text-on-surface-variant leading-relaxed mb-6">
                     {hasGeminiKey 
                       ? 'La IA está configurada y lista para procesar de forma automatizada las imágenes y documentos contables en el Tablero.' 
-                      : 'La clave API de Gemini no se encuentra. El sistema funcionará empleando respuestas estáticas de demostración.'}
+                      : 'La clave API de Gemini no se encuentra. Asegúrate de configurar la variable de entorno GEMINI_API_KEY en tu servidor.'}
                   </p>
 
                   {/* Formulario para ingresar/guardar API Key */}
@@ -2126,6 +2146,12 @@ export default function Home() {
         />
       )}
 
+      {/* Banner de error de conexión con Supabase */}
+      {supabaseStatus === 'error' && (
+        <div className="fixed bottom-0 left-0 right-0 bg-red-600 text-white py-1.5 px-4 text-center text-xs font-semibold select-none z-[9999] shadow-[0_-2px_10px_rgba(0,0,0,0.2)]">
+          ⚠️ Pérdida de conexión con Supabase o la base de datos.
+        </div>
+      )}
     </div>
   );
 }

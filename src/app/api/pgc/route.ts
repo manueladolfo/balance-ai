@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isSupabaseConfigured, supabaseAdmin } from '@/lib/supabase';
-import { mockDb } from '@/lib/mockDb';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
-    if (isSupabaseConfigured() && supabaseAdmin) {
-      const { data: accounts, error } = await supabaseAdmin
-        .from('pgc_accounts')
-        .select('*')
-        .order('code', { ascending: true });
-
-      if (error) {
-        throw new Error('Error al consultar PGC de Supabase: ' + error.message);
-      }
-
-      return NextResponse.json({ accounts: accounts || [] });
-    } else {
-      const accounts = mockDb.getPgcAccounts();
-      return NextResponse.json({ accounts });
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
+
+    const { data: accounts, error } = await supabaseAdmin
+      .from('pgc_accounts')
+      .select('*')
+      .order('code', { ascending: true });
+
+    if (error) {
+      throw new Error('Error al consultar PGC de Supabase: ' + error.message);
+    }
+
+    return NextResponse.json({ accounts: accounts || [] });
   } catch (error: any) {
     console.error('Fetch PGC API error:', error);
     return NextResponse.json({ error: error.message || 'Error al recuperar PGC.' }, { status: 500 });
@@ -33,17 +31,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Falta proporcionar la lista de cuentas.' }, { status: 400 });
     }
 
-    if (isSupabaseConfigured() && supabaseAdmin) {
-      // Upsert accounts
-      const { error } = await supabaseAdmin
-        .from('pgc_accounts')
-        .upsert(accounts, { onConflict: 'code' });
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
+    }
 
-      if (error) {
-        throw new Error('Error al guardar PGC en Supabase: ' + error.message);
-      }
-    } else {
-      mockDb.setPgcAccounts(accounts);
+    // Upsert accounts
+    const { error } = await supabaseAdmin
+      .from('pgc_accounts')
+      .upsert(accounts, { onConflict: 'code' });
+
+    if (error) {
+      throw new Error('Error al guardar PGC en Supabase: ' + error.message);
     }
 
     return NextResponse.json({ success: true, message: 'Plan Contable actualizado correctamente.' });

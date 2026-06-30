@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isSupabaseConfigured, supabaseAdmin } from '@/lib/supabase';
-import { mockDb } from '@/lib/mockDb';
+import { supabaseAdmin } from '@/lib/supabase';
 import JSZip from 'jszip';
 
 export async function POST(req: NextRequest) {
@@ -11,40 +10,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Falta proporcionar los IDs de documentos a exportar.' }, { status: 400 });
     }
 
-    let entries: any[] = [];
-
-    // 1. Fetch entries and lines
-    if (isSupabaseConfigured() && supabaseAdmin) {
-      const { data: dbEntries, error: entriesError } = await supabaseAdmin
-        .from('accounting_entries')
-        .select(`
-          id,
-          document_id,
-          entry_date,
-          entry_number,
-          reference,
-          concept,
-          entry_lines (
-            id,
-            line_type,
-            subaccount_code,
-            subaccount_desc,
-            amount
-          )
-        `)
-        .in('document_id', documentIds);
-
-      if (entriesError) {
-        console.error('Supabase fetch entries error:', entriesError);
-        return NextResponse.json({ error: 'Error al recuperar los asientos de la base de datos.' }, { status: 500 });
-      }
-
-      entries = dbEntries || [];
-    } else {
-      // Local Mock DB
-      const mockEntries = mockDb.getEntries();
-      entries = mockEntries.filter(e => documentIds.includes(e.document_id));
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
+
+    // 1. Fetch entries and lines from Supabase
+    const { data: dbEntries, error: entriesError } = await supabaseAdmin
+      .from('accounting_entries')
+      .select(`
+        id,
+        document_id,
+        entry_date,
+        entry_number,
+        reference,
+        concept,
+        entry_lines (
+          id,
+          line_type,
+          subaccount_code,
+          subaccount_desc,
+          amount
+        )
+      `)
+      .in('document_id', documentIds);
+
+    if (entriesError) {
+      console.error('Supabase fetch entries error:', entriesError);
+      return NextResponse.json({ error: 'Error al recuperar los asientos de la base de datos.' }, { status: 500 });
+    }
+
+    const entries = dbEntries || [];
 
     if (entries.length === 0) {
       return NextResponse.json({ error: 'No se encontraron asientos contables para los documentos seleccionados.' }, { status: 404 });
@@ -60,7 +55,7 @@ export async function POST(req: NextRequest) {
       const ref = entry.reference || '';
       const concept = entry.concept || '';
 
-      const lines = entry.entry_lines || entry.lines || [];
+      const lines = entry.entry_lines || [];
       
       lines.forEach((line: any) => {
         // Collect subaccount details
