@@ -97,3 +97,23 @@ CREATE POLICY "Allow public read pgc_accounts" ON public.pgc_accounts FOR SELECT
 CREATE POLICY "Allow public insert pgc_accounts" ON public.pgc_accounts FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update pgc_accounts" ON public.pgc_accounts FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete pgc_accounts" ON public.pgc_accounts FOR DELETE USING (true);
+
+-- 5. Create notifications table
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('success', 'error', 'info', 'warning')),
+    read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_company_id ON public.notifications(company_id);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read notifications" ON public.notifications FOR SELECT USING (true);
+CREATE POLICY "Allow public insert notifications" ON public.notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update notifications" ON public.notifications FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete notifications" ON public.notifications FOR DELETE USING (true);

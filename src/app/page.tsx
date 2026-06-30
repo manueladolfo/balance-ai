@@ -155,24 +155,7 @@ export default function Home() {
 
   // Notifications/Toasts
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [notifications, setNotifications] = useState<AppNotification[]>([
-    {
-      id: 'init',
-      title: 'Conexión Establecida',
-      description: 'Base de datos Supabase conectada con éxito.',
-      type: 'success',
-      timestamp: 'Reciente',
-      read: false
-    },
-    {
-      id: 'welcome',
-      title: 'Bienvenido a Balance AI',
-      description: 'Tu copiloto contable autónomo está listo para procesar documentos.',
-      type: 'info',
-      timestamp: 'Reciente',
-      read: false
-    }
-  ]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // 1. Fetch data on mount
@@ -267,6 +250,19 @@ export default function Home() {
       const pgcData = await pgcRes.json();
       if (pgcRes.ok) {
         setPgcAccounts(pgcData.accounts || []);
+      }
+
+      // Fetch synchronized notifications
+      const notifRes = await fetch(`/api/notifications?companyId=${targetCompanyId}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const notifData = await notifRes.json();
+      if (notifRes.ok && notifData.notifications) {
+        const mappedNotifs: AppNotification[] = notifData.notifications.map((n: any) => ({
+          ...n,
+          timestamp: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+        setNotifications(mappedNotifs);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -736,17 +732,54 @@ export default function Home() {
   };
 
   // Notification helper
-  const addNotification = (title: string, description: string, type: AppNotification['type']) => {
-    const newNotif: AppNotification = {
-      id: Math.random().toString(36).substring(7),
-      title,
-      description,
-      type,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
+  const addNotification = async (title: string, description: string, type: AppNotification['type']) => {
+    // Alerta visual local inmediata
     showToast(title, type === 'error' ? 'error' : type === 'info' ? 'info' : 'success');
+
+    const client = supabase;
+    if (!client || !selectedCompanyId) {
+      // Fallback local si no hay empresa activa o Supabase no responde
+      const localNotif: AppNotification = {
+        id: Math.random().toString(36).substring(7),
+        title,
+        description,
+        type,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        read: false
+      };
+      setNotifications(prev => [localNotif, ...prev]);
+      return;
+    }
+
+    try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          companyId: selectedCompanyId,
+          title,
+          description,
+          type
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.notification) {
+        const savedNotif: AppNotification = {
+          ...data.notification,
+          timestamp: new Date(data.notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setNotifications(prev => [savedNotif, ...prev]);
+      }
+    } catch (err) {
+      console.error('Error al guardar notificación en Supabase:', err);
+    }
   };
 
   // Helper to calculate dynamic extraction speed average
@@ -2116,7 +2149,21 @@ export default function Home() {
                         {notifications.length > 0 && (
                           <>
                             <button 
-                              onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+                              onClick={async () => {
+                                setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                                const client = supabase;
+                                if (!client || !selectedCompanyId) return;
+                                try {
+                                  const { data: { session } } = await client.auth.getSession();
+                                  if (!session) return;
+                                  await fetch(`/api/notifications?companyId=${selectedCompanyId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                                  });
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }}
                               className="text-[9px] font-bold text-primary hover:underline focus:outline-none"
                               title="Marcar todas como leídas"
                             >
@@ -2124,7 +2171,22 @@ export default function Home() {
                             </button>
                             <span className="text-outline-variant/30 text-[9px] select-none">|</span>
                             <button 
-                              onClick={() => setNotifications([])}
+                              onClick={async () => {
+                                if (!window.confirm('¿Seguro que deseas limpiar todo tu historial de notificaciones?')) return;
+                                setNotifications([]);
+                                const client = supabase;
+                                if (!client || !selectedCompanyId) return;
+                                try {
+                                  const { data: { session } } = await client.auth.getSession();
+                                  if (!session) return;
+                                  await fetch(`/api/notifications?companyId=${selectedCompanyId}`, {
+                                    method: 'DELETE',
+                                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                                  });
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }}
                               className="text-[9px] font-bold text-red-600 hover:underline focus:outline-none"
                               title="Limpiar historial"
                             >
@@ -2145,7 +2207,22 @@ export default function Home() {
                         notifications.map((item) => (
                           <div 
                             key={item.id} 
-                            onClick={() => setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n))}
+                            onClick={async () => {
+                              if (item.read) return;
+                              setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
+                              const client = supabase;
+                              if (!client || !selectedCompanyId) return;
+                              try {
+                                const { data: { session } } = await client.auth.getSession();
+                                if (!session) return;
+                                await fetch(`/api/notifications?companyId=${selectedCompanyId}&id=${item.id}`, {
+                                  method: 'PUT',
+                                  headers: { 'Authorization': `Bearer ${session.access_token}` }
+                                });
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            }}
                             className={`p-2.5 rounded-sm border transition-all cursor-pointer flex gap-3 text-left ${
                               item.read 
                                 ? 'bg-surface-container-low/20 border-outline-variant/5 opacity-70' 
