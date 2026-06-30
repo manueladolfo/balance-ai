@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import EntryModal, { AccountingEntry } from '@/components/EntryModal';
+import { supabase } from '@/lib/supabase';
 
 interface Document {
   id: string;
@@ -22,6 +23,15 @@ interface Message {
 export default function Home() {
   // Tabs and general UI state
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Empezamos en false para mostrar la pantalla de login de inmediato como en la captura
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'settings'>('dashboard');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,7 +120,244 @@ export default function Home() {
 
   useEffect(() => {
     fetchData();
+
+    const client = supabase;
+    if (!client) return;
+
+    // Comprobar sesión activa de Supabase al cargar
+    const checkUser = async () => {
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await client
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile) {
+            setActiveUser({
+              name: profile.name,
+              email: profile.email,
+              role: profile.username ? `@${profile.username}` : 'Usuario'
+            });
+          } else {
+            setActiveUser({
+              name: session.user.user_metadata.name || session.user.email?.split('@')[0] || 'Usuario',
+              email: session.user.email || '',
+              role: 'Usuario'
+            });
+          }
+          setIsLoggedIn(true);
+        }
+      } catch (err) {
+        console.error('Error checking user session:', err);
+      }
+    };
+    checkUser();
+
+    // Escuchar cambios de autenticación
+    const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        try {
+          const { data: profile } = await client
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile) {
+            setActiveUser({
+              name: profile.name,
+              email: profile.email,
+              role: profile.username ? `@${profile.username}` : 'Usuario'
+            });
+          } else {
+            setActiveUser({
+              name: session.user.user_metadata.name || session.user.email?.split('@')[0] || 'Usuario',
+              email: session.user.email || '',
+              role: 'Usuario'
+            });
+          }
+          setIsLoggedIn(true);
+        } catch (err) {
+          console.error('Error handling auth state change:', err);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+    
+    const identifier = authEmail.trim();
+    const password = authPassword;
+
+    if (!identifier || !password) {
+      showToast('Por favor, rellena todos los campos.', 'error');
+      return;
+    }
+
+    setIsAuthLoading(true);
+    try {
+      let email = identifier;
+
+      // Si no contiene un '@', asumimos que es un nombre de usuario
+      if (!identifier.includes('@')) {
+        const { data: profile, error: profileError } = await client
+          .from('profiles')
+          .select('email')
+          .eq('username', identifier.toLowerCase())
+          .maybeSingle();
+
+        if (profileError || !profile) {
+          showToast('Nombre de usuario no encontrado.', 'error');
+          setIsAuthLoading(false);
+          return;
+        }
+        email = profile.email;
+      }
+
+      const { error } = await client.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        showToast(error.message, 'error');
+      } else {
+        showToast('Sesión iniciada con éxito.', 'success');
+        setAuthEmail('');
+        setAuthPassword('');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error al iniciar sesión.', 'error');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
+    const name = regName.trim();
+    const username = regUsername.trim().toLowerCase();
+    const email = regEmail.trim();
+    const password = regPassword;
+
+    if (!name || !email || !password) {
+      showToast('Por favor, rellena todos los campos requeridos.', 'error');
+      return;
+    }
+
+    if (password.length < 6) {
+      showToast('La contraseña debe tener al menos 6 caracteres.', 'error');
+      return;
+    }
+
+    setIsAuthLoading(true);
+    try {
+      // 1. Si se ingresó un nombre de usuario, validar que sea único
+      if (username) {
+        const usernameRegex = /^[a-zA-Z0-9_.-]+$/;
+        if (!usernameRegex.test(username)) {
+          showToast('Nombre de usuario con caracteres no válidos.', 'error');
+          setIsAuthLoading(false);
+          return;
+        }
+
+        const { data: existingProfile, error: checkError } = await client
+          .from('profiles')
+          .select('username')
+          .eq('username', username)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error('Error checking username:', checkError);
+        }
+
+        if (existingProfile) {
+          showToast('El nombre de usuario ya existe.', 'error');
+          setIsAuthLoading(false);
+          return;
+        }
+      }
+
+      // 2. Registrar el usuario en Supabase Auth
+      const { data: signUpData, error: signUpError } = await client.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          }
+        }
+      });
+
+      if (signUpError) {
+        showToast(signUpError.message, 'error');
+        setIsAuthLoading(false);
+        return;
+      }
+
+      const user = signUpData.user;
+      if (!user) {
+        showToast('No se pudo crear el usuario.', 'error');
+        setIsAuthLoading(false);
+        return;
+      }
+
+      // 3. Crear el perfil del usuario en la base de datos
+      const { error: profileError } = await client
+        .from('profiles')
+        .insert({
+          id: user.id,
+          name,
+          username: username || null,
+          email,
+        });
+
+      if (profileError) {
+        console.error('Error al crear el perfil:', profileError);
+      }
+
+      showToast('Usuario registrado con éxito.', 'success');
+      setIsRegistering(false);
+      
+      // Auto-iniciar sesión
+      await client.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      setRegName('');
+      setRegUsername('');
+      setRegEmail('');
+      setRegPassword('');
+    } catch (err) {
+      console.error(err);
+      showToast('Error al registrar usuario.', 'error');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
 
   // Scroll to bottom of chat when new message arrives
   useEffect(() => {
@@ -644,53 +891,171 @@ export default function Home() {
             />
           </div>
 
-          {/* Formulario ultra-limpio y espaciado */}
-          <form onSubmit={(e) => { e.preventDefault(); setIsLoggedIn(true); }} className="w-full space-y-12">
-            
-            {/* Email or User Field */}
-            <div className="space-y-3 text-left">
-              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="email-login">
-                Correo Electrónico o Usuario
-              </label>
-              <input 
-                id="email-login"
-                type="text"
-                defaultValue="ejemplo@empresa.com"
-                required
-                className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
-                placeholder="ejemplo@empresa.com"
-              />
-            </div>
+          {!isRegistering ? (
+            /* Formulario de Login */
+            <form onSubmit={handleLogin} className="w-full space-y-8 animate-in fade-in duration-300">
+              <h2 className="text-center text-sm font-bold text-primary uppercase tracking-widest mb-6">Iniciar Sesión</h2>
+              
+              {/* Email or Username Field */}
+              <div className="space-y-2 text-left">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="email-login">
+                  Correo Electrónico o Usuario
+                </label>
+                <input 
+                  id="email-login"
+                  type="text"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  required
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="ejemplo@empresa.com o usuario"
+                  disabled={isAuthLoading}
+                />
+              </div>
 
-            {/* Password Field */}
-            <div className="space-y-3 text-left">
-              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="password-login">
-                Contraseña
-              </label>
-              <input 
-                id="password-login"
-                type="password"
-                defaultValue="password123"
-                required
-                className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
-                placeholder="••••••••"
-              />
-            </div>
+              {/* Password Field */}
+              <div className="space-y-2 text-left">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="password-login">
+                  Contraseña
+                </label>
+                <input 
+                  id="password-login"
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  required
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="••••••••"
+                  disabled={isAuthLoading}
+                />
+              </div>
 
-            {/* Iniciar Sesion Button */}
-            <div className="pt-4">
-              <button 
-                type="submit"
-                className="w-full flex items-center justify-center gap-sm bg-primary text-white py-3 rounded-sm font-bold hover:opacity-95 active:scale-[0.99] transition-all"
-              >
-                <span className="text-xs font-bold text-white uppercase tracking-wider">Iniciar Sesión</span>
-                <span className="material-symbols-outlined text-sm text-white">arrow_right_alt</span>
-              </button>
-            </div>
+              {/* Iniciar Sesion Button */}
+              <div className="pt-4 space-y-4">
+                <button 
+                  type="submit"
+                  disabled={isAuthLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-sm font-bold hover:opacity-95 active:scale-[0.99] transition-all disabled:opacity-50"
+                >
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    {isAuthLoading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
+                  </span>
+                  {!isAuthLoading && <span className="material-symbols-outlined text-sm text-white">arrow_right_alt</span>}
+                </button>
+                
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsRegistering(true); }}
+                    className="text-[11px] text-primary/70 hover:text-primary font-semibold transition-all focus:outline-none"
+                  >
+                    ¿No tienes cuenta? Regístrate aquí
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            /* Formulario de Registro */
+            <form onSubmit={handleRegister} className="w-full space-y-6 animate-in fade-in duration-300">
+              <h2 className="text-center text-sm font-bold text-primary uppercase tracking-widest mb-4">Crear una Cuenta</h2>
+              
+              {/* Nombre Completo */}
+              <div className="space-y-2 text-left">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="reg-name">
+                  Nombre Completo
+                </label>
+                <input 
+                  id="reg-name"
+                  type="text"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  required
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="Juan Pérez"
+                  disabled={isAuthLoading}
+                />
+              </div>
 
-          </form>
+              {/* Nombre de Usuario (Opcional) */}
+              <div className="space-y-2 text-left">
+                <div className="flex justify-between items-center">
+                  <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="reg-username">
+                    Nombre de Usuario
+                  </label>
+                  <span className="text-[9px] text-on-surface-variant/60 font-semibold uppercase tracking-wider">Opcional</span>
+                </div>
+                <input 
+                  id="reg-username"
+                  type="text"
+                  value={regUsername}
+                  onChange={(e) => setRegUsername(e.target.value)}
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="juan_perez"
+                  disabled={isAuthLoading}
+                />
+              </div>
+
+              {/* Correo Electrónico */}
+              <div className="space-y-2 text-left">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="reg-email">
+                  Correo Electrónico
+                </label>
+                <input 
+                  id="reg-email"
+                  type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  required
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="ejemplo@empresa.com"
+                  disabled={isAuthLoading}
+                />
+              </div>
+
+              {/* Contraseña */}
+              <div className="space-y-2 text-left">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="reg-password">
+                  Contraseña (min. 6 caracteres)
+                </label>
+                <input 
+                  id="reg-password"
+                  type="password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="••••••••"
+                  disabled={isAuthLoading}
+                />
+              </div>
+
+              {/* Registrarse Button */}
+              <div className="pt-4 space-y-4">
+                <button 
+                  type="submit"
+                  disabled={isAuthLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-sm font-bold hover:opacity-95 active:scale-[0.99] transition-all disabled:opacity-50"
+                >
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    {isAuthLoading ? 'Registrando...' : 'Registrar Cuenta'}
+                  </span>
+                  {!isAuthLoading && <span className="material-symbols-outlined text-sm text-white">app_registration</span>}
+                </button>
+                
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsRegistering(false); }}
+                    className="text-[11px] text-primary/70 hover:text-primary font-semibold transition-all focus:outline-none"
+                  >
+                    ¿Ya tienes cuenta? Inicia sesión aquí
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </div>
-
         {/* Bottom creator line only */}
         <div className="text-center w-full mt-16">
           <p className="text-[9px] text-on-surface-variant font-mono tracking-widest opacity-60">
@@ -864,7 +1229,12 @@ export default function Home() {
             <span className="text-label-bold font-label-bold">Ayuda & Soporte</span>
           </div>
           <div 
-            onClick={() => setIsLoggedIn(false)}
+            onClick={async () => {
+              if (supabase) {
+                await supabase.auth.signOut();
+              }
+              setIsLoggedIn(false);
+            }}
             className="flex items-center gap-4 px-4 py-2.5 text-on-surface-variant hover:text-error cursor-pointer rounded-sm hover:bg-error-container/10 transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">logout</span>
@@ -952,34 +1322,6 @@ export default function Home() {
                   </div>
                   
                   <div className="h-px bg-outline-variant/10 my-2"></div>
-                  
-                  {/* Cambio de Cuenta / Usuarios alternativos */}
-                  <div className="px-4 py-1 select-none">
-                    <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest block mb-2 text-[8px]">Cambiar de Cuenta</span>
-                    <div className="space-y-1.5">
-                      {usersList.filter(u => u.email !== activeUser.email).map((u) => (
-                        <button
-                          key={u.email}
-                          onClick={() => {
-                            setActiveUser(u);
-                            setIsUserDropdownOpen(false);
-                            showToast(`Sesión cambiada a ${u.name}`, 'success');
-                          }}
-                          className="w-full text-left px-3 py-2 text-xs font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-sm transition-all flex items-center gap-2 focus:outline-none"
-                        >
-                          <div className="w-5 h-5 rounded-full bg-primary-container/20 flex items-center justify-center text-primary text-[10px] font-bold">
-                            {u.name.split(' ').map(n => n[0]).join('')}
-                          </div>
-                          <div className="flex flex-col leading-none">
-                            <span className="font-semibold text-[11px]">{u.name}</span>
-                            <span className="text-[8px] opacity-75">{u.role}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-outline-variant/10 my-2"></div>
 
                   {/* Bloqueo y Cerrar Sesión */}
                   <button 
@@ -990,7 +1332,13 @@ export default function Home() {
                     <span>Bloquear Pantalla</span>
                   </button>
                   <button 
-                    onClick={() => { setIsLoggedIn(false); setIsUserDropdownOpen(false); }}
+                    onClick={async () => {
+                      if (supabase) {
+                        await supabase.auth.signOut();
+                      }
+                      setIsLoggedIn(false);
+                      setIsUserDropdownOpen(false);
+                    }}
                     className="w-full px-4 py-2 text-xs text-on-surface-variant hover:text-error hover:bg-error-container/10 transition-colors text-left flex items-center gap-2 focus:outline-none"
                   >
                     <span className="material-symbols-outlined text-sm">logout</span>
@@ -1738,9 +2086,7 @@ export default function Home() {
 
             </div>
           )}
-
         </div>
-
       </main>
 
       {/* Entry Detail Floating Modal Overlay */}
