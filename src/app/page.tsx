@@ -28,6 +28,15 @@ interface Message {
   text: string;
 }
 
+interface BulkFileItem {
+  id: string;
+  file: File;
+  type: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro';
+  status: 'pending' | 'uploading' | 'analyzing' | 'completed' | 'error';
+  progress: number;
+  errorMsg?: string;
+}
+
 export default function Home() {
   // Tabs and general UI state
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Empezamos en false para mostrar la pantalla de login de inmediato como en la captura
@@ -94,6 +103,9 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingFileName, setProcessingFileName] = useState('');
+  const [bulkFiles, setBulkFiles] = useState<BulkFileItem[]>([]);
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pgcInputRef = useRef<HTMLInputElement>(null);
 
@@ -685,19 +697,15 @@ export default function Home() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // 2. File Upload flow
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
+  // Helper to upload and analyze a single file immediately
+  const uploadSingleFile = async (file: File, type: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro') => {
     setProcessingFileName(file.name);
     setIsUploading(true);
     setUploadProgress(10);
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('type', uploadType);
+    formData.append('type', type);
     if (selectedCompanyId) {
       formData.append('companyId', selectedCompanyId);
     }
@@ -774,6 +782,149 @@ export default function Home() {
         setUploadProgress(0);
         setProcessingFileName('');
       }, 1000);
+    }
+  };
+
+  // General handler for file selection (from input or drag & drop)
+  const handleFileSelection = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    if (!selectedCompanyId) {
+      showToast('Por favor, selecciona o crea una empresa antes de subir documentos.', 'error');
+      return;
+    }
+
+    if (files.length === 1) {
+      // Single file mode: upload immediately
+      uploadSingleFile(files[0], uploadType);
+    } else {
+      // Multiple files mode: open bulk manager
+      const newBulkFiles: BulkFileItem[] = Array.from(files).map(file => {
+        const name = file.name.toLowerCase();
+        let predictedType: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro' = uploadType;
+        
+        // Smart predictive classification based on filename
+        if (name.includes('factura') || name.includes('invoice') || name.includes('fact') || name.includes('fac_')) {
+          predictedType = 'Factura';
+        } else if (name.includes('ticket') || name.includes('gasolina') || name.includes('transporte') || name.includes('uber') || name.includes('cabify') || name.includes('peaje')) {
+          predictedType = 'Ticket';
+        } else if (name.includes('extracto') || name.includes('banco') || name.includes('sabadell') || name.includes('bbva') || name.includes('santander') || name.includes('bank') || name.includes('movimientos')) {
+          predictedType = 'Extracto';
+        } else if (name.includes('recibo') || name.includes('recib') || name.includes('cuota')) {
+          predictedType = 'Recibo';
+        }
+        
+        return {
+          id: Math.random().toString(36).substring(7),
+          file,
+          type: predictedType,
+          status: 'pending',
+          progress: 0
+        };
+      });
+      
+      setBulkFiles(newBulkFiles);
+      setIsBulkMode(true);
+    }
+  };
+
+  // Handler to process all bulk files sequentially
+  const startBulkProcessing = async () => {
+    if (bulkFiles.length === 0 || isBulkProcessing) return;
+
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
+    try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        showToast('No se encontró sesión activa.', 'error');
+        return;
+      }
+
+      setIsBulkProcessing(true);
+
+      for (let i = 0; i < bulkFiles.length; i++) {
+        const currentItem = bulkFiles[i];
+        if (currentItem.status === 'completed') continue;
+
+        // Set status to uploading
+        setBulkFiles(prev => prev.map(item => 
+          item.id === currentItem.id 
+            ? { ...item, status: 'uploading', progress: 20 } 
+            : item
+        ));
+
+        try {
+          const formData = new FormData();
+          formData.append('file', currentItem.file);
+          formData.append('type', currentItem.type);
+          formData.append('companyId', selectedCompanyId);
+
+          // Upload step
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+            body: formData
+          });
+
+          const uploadData = await uploadRes.json();
+          if (!uploadRes.ok) {
+            throw new Error(uploadData.error || 'Error al subir archivo.');
+          }
+
+          const { documentId } = uploadData;
+
+          // Set status to analyzing
+          setBulkFiles(prev => prev.map(item => 
+            item.id === currentItem.id 
+              ? { ...item, status: 'analyzing', progress: 60 } 
+              : item
+          ));
+
+          // Analyze step
+          const analyzeRes = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ documentId })
+          });
+
+          const analyzeData = await analyzeRes.json();
+          if (!analyzeRes.ok) {
+            throw new Error(analyzeData.error || 'Error en análisis de IA.');
+          }
+
+          // Complete step
+          setBulkFiles(prev => prev.map(item => 
+            item.id === currentItem.id 
+              ? { ...item, status: 'completed', progress: 100 } 
+              : item
+          ));
+
+        } catch (err: any) {
+          console.error(`Error processing file ${currentItem.file.name}:`, err);
+          setBulkFiles(prev => prev.map(item => 
+            item.id === currentItem.id 
+              ? { ...item, status: 'error', progress: 100, errorMsg: err.message || 'Error desconocido' } 
+              : item
+          ));
+        }
+      }
+
+      showToast('Procesamiento de cola masiva completado.', 'success');
+      await fetchData(selectedCompanyId);
+
+    } catch (err: any) {
+      console.error(err);
+      showToast('Error en la carga secuencial.', 'error');
+    } finally {
+      setIsBulkProcessing(false);
     }
   };
 
@@ -2477,56 +2628,173 @@ export default function Home() {
                 
                 {/* Left Side: Upload zone */}
                 <div className="col-span-1 md:col-span-7 lg:col-span-8 flex flex-col gap-6">
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="relative group cursor-pointer transition-all duration-300 border border-dashed border-outline-variant/15 rounded-sm bg-surface-container-low/10 p-12 flex flex-col items-center justify-center gap-6 min-h-[320px] hover:border-secondary/40 hover:bg-surface-container-low/20 shadow-precision"
-                  >
-                    <div className="w-14 h-14 bg-primary/5 rounded-sm flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
-                      <span className="material-symbols-outlined text-3xl">cloud_upload</span>
-                    </div>
-                    <div className="text-center space-y-2">
-                      <h3 className="font-bold text-sm text-primary">Seleccionar archivos</h3>
-                      <p className="text-[11px] text-on-surface-variant">o arrastre PDF, PNG o JPG aquí</p>
-                      <p className="text-[9px] text-on-surface-variant/70">Máx. 25MB por archivo</p>
-                    </div>
-                    
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                      className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all focus:outline-none"
-                    >
-                      Explorar Archivos
-                    </button>
-
-                    <input 
-                      ref={fileInputRef}
-                      onChange={handleFileUpload}
-                      className="hidden" 
-                      type="file" 
-                      accept=".pdf,.png,.jpg,.jpeg"
-                    />
-                  </div>
-
-                  {/* Processing Status Block */}
-                  {isUploading && (
-                    <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 flex flex-col gap-4 shadow-precision">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
-                          <span className="font-bold text-[10px] text-primary uppercase tracking-wider">Análisis Inteligente en Curso</span>
+                  {isBulkMode ? (
+                    <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 flex flex-col gap-6 shadow-precision">
+                      <div className="flex justify-between items-center border-b border-outline-variant/10 pb-4">
+                        <div>
+                          <h3 className="font-bold text-sm text-primary text-left">Bandeja de Carga Masiva</h3>
+                          <p className="text-[10px] text-on-surface-variant font-medium text-left">Asigna la categoría a cada documento antes de iniciar</p>
                         </div>
-                        <span className="font-mono-data text-xs text-secondary font-bold">{uploadProgress}% Completado</span>
+                        <span className="text-[10px] bg-secondary-container/30 text-secondary font-bold px-2.5 py-1 rounded-sm uppercase tracking-wider">
+                          {bulkFiles.length} Archivos
+                        </span>
                       </div>
-                      <div className="w-full h-1.5 bg-surface-container-high rounded-sm overflow-hidden">
-                        <div 
-                          className="h-full bg-secondary progress-shimmer transition-all duration-500" 
-                          style={{ width: `${uploadProgress}%` }}
-                        ></div>
+
+                      {/* Lista de archivos */}
+                      <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                        {bulkFiles.map((item) => (
+                          <div key={item.id} className="p-3 border border-outline-variant/10 rounded-sm space-y-3 bg-surface-container-low/20">
+                            <div className="flex justify-between items-center gap-4">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="material-symbols-outlined text-primary text-sm shrink-0">
+                                  {item.status === 'completed' ? 'check_circle' : item.status === 'error' ? 'error' : 'receipt_long'}
+                                </span>
+                                <span className="text-[11px] font-semibold truncate text-on-surface text-left" title={item.file.name}>
+                                  {item.file.name}
+                                </span>
+                                <span className="text-[9px] text-on-surface-variant/70 font-mono shrink-0">
+                                  ({(item.file.size / 1024).toFixed(0)} KB)
+                                </span>
+                              </div>
+                              
+                              {/* Botón eliminar (solo si no se está procesando) */}
+                              {!isBulkProcessing && item.status === 'pending' && (
+                                <button 
+                                  onClick={() => setBulkFiles(prev => prev.filter(f => f.id !== item.id))}
+                                  className="p-1 text-on-surface-variant hover:text-red-600 rounded-sm hover:bg-surface-container-high transition-colors focus:outline-none"
+                                >
+                                  <span className="material-symbols-outlined text-xs">delete</span>
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Selector de pastillas (Pills) si está pendiente, o barra de progreso/estado si está procesando */}
+                            {item.status === 'pending' ? (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {['Factura', 'Recibo', 'Ticket', 'Extracto', 'Otro'].map((cat) => (
+                                  <button
+                                    key={cat}
+                                    disabled={isBulkProcessing}
+                                    onClick={() => setBulkFiles(prev => prev.map(f => f.id === item.id ? { ...f, type: cat as any } : f))}
+                                    className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-wider border transition-all focus:outline-none ${
+                                      item.type === cat
+                                        ? 'bg-primary text-white border-primary'
+                                        : 'bg-transparent text-on-surface-variant border-outline-variant/10 hover:bg-surface-container-low'
+                                    }`}
+                                  >
+                                    {cat}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
+                                  <span className={
+                                    item.status === 'completed' ? 'text-[#006d37]' : 
+                                    item.status === 'error' ? 'text-red-600' : 'text-primary'
+                                  }>
+                                    {item.status === 'uploading' && 'Subiendo archivo...'}
+                                    {item.status === 'analyzing' && 'Analizando con Gemini...'}
+                                    {item.status === 'completed' && 'Procesado con éxito'}
+                                    {item.status === 'error' && `Error: ${item.errorMsg || 'Falló el análisis'}`}
+                                  </span>
+                                  <span className="font-mono">{item.progress}%</span>
+                                </div>
+                                <div className="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full transition-all duration-300 ${
+                                      item.status === 'completed' ? 'bg-[#006d37]' : 
+                                      item.status === 'error' ? 'bg-red-600' : 'bg-primary'
+                                    }`}
+                                    style={{ width: `${item.progress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center justify-between text-[10px] text-on-surface-variant leading-none">
-                        <span>Procesando: <strong className="text-on-surface font-semibold">{processingFileName}</strong></span>
-                        <span className="flex items-center gap-xs"><span className="material-symbols-outlined text-xs">bolt</span> Extracción estructurada OCR y mapeo PGC</span>
+
+                      {/* Botones de acción inferiores */}
+                      <div className="flex justify-end gap-3 border-t border-outline-variant/10 pt-4">
+                        <button
+                          disabled={isBulkProcessing}
+                          onClick={() => { setIsBulkMode(false); setBulkFiles([]); }}
+                          className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors focus:outline-none disabled:opacity-40"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={startBulkProcessing}
+                          disabled={isBulkProcessing || bulkFiles.length === 0}
+                          className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-45 disabled:pointer-events-none flex items-center gap-1.5 focus:outline-none"
+                        >
+                          {isBulkProcessing && <span className="animate-spin material-symbols-outlined text-xs">progress_activity</span>}
+                          <span>Iniciar Carga</span>
+                        </button>
                       </div>
                     </div>
+                  ) : (
+                    /* ZONA DE ARRASTRE NORMAL (SINGLE / BULK TRIGGER) */
+                    <>
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFileSelection(e.dataTransfer.files);
+                        }}
+                        className="relative group cursor-pointer transition-all duration-300 border border-dashed border-outline-variant/15 rounded-sm bg-surface-container-low/10 p-12 flex flex-col items-center justify-center gap-6 min-h-[320px] hover:border-secondary/40 hover:bg-surface-container-low/20 shadow-precision"
+                      >
+                        <div className="w-14 h-14 bg-primary/5 rounded-sm flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                          <span className="material-symbols-outlined text-3xl">cloud_upload</span>
+                        </div>
+                        <div className="text-center space-y-2">
+                          <h3 className="font-bold text-sm text-primary">Seleccionar archivos</h3>
+                          <p className="text-[11px] text-on-surface-variant">o arrastre PDF, PNG o JPG aquí</p>
+                          <p className="text-[9px] text-on-surface-variant/70">Máx. 25MB por archivo</p>
+                        </div>
+                        
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                          className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all focus:outline-none"
+                        >
+                          Explorar Archivos
+                        </button>
+
+                        <input 
+                          ref={fileInputRef}
+                          onChange={(e) => handleFileSelection(e.target.files)}
+                          className="hidden" 
+                          type="file" 
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          multiple={true}
+                        />
+                      </div>
+
+                      {/* Processing Status Block para subida única */}
+                      {isUploading && (
+                        <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 flex flex-col gap-4 shadow-precision">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                              <span className="font-bold text-[10px] text-primary uppercase tracking-wider">Análisis Inteligente en Curso</span>
+                            </div>
+                            <span className="font-mono-data text-xs text-secondary font-bold">{uploadProgress}% Completado</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-surface-container-high rounded-sm overflow-hidden">
+                            <div 
+                              className="h-full bg-secondary transition-all duration-300"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-on-surface-variant text-left">
+                            Procesando y extrayendo datos de: <strong className="text-primary">{processingFileName}</strong>
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
