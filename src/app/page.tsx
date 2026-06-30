@@ -34,6 +34,14 @@ export default function Home() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
 
+  // Account management states
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isAccountActionLoading, setIsAccountActionLoading] = useState(false);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'settings'>('dashboard');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
@@ -388,6 +396,87 @@ export default function Home() {
       showToast('Error al registrar usuario.', 'error');
     } finally {
       setIsAuthLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
+    const newPassword = newPasswordInput.trim();
+    if (!newPassword || newPassword.length < 6) {
+      showToast('La contraseña debe tener al menos 6 caracteres.', 'error');
+      return;
+    }
+
+    setIsAccountActionLoading(true);
+    try {
+      const { error } = await client.auth.updateUser({ password: newPassword });
+
+      if (error) {
+        throw error;
+      }
+
+      showToast('Contraseña actualizada con éxito.', 'success');
+      setIsChangePasswordModalOpen(false);
+      setNewPasswordInput('');
+    } catch (err: any) {
+      console.error('Error al actualizar contraseña:', err);
+      showToast(err.message || 'Error al actualizar la contraseña.', 'error');
+    } finally {
+      setIsAccountActionLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'ELIMINAR') {
+      showToast('Por favor, escribe ELIMINAR para confirmar.', 'error');
+      return;
+    }
+
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
+    setIsAccountActionLoading(true);
+    try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        showToast('No se encontró sesión activa.', 'error');
+        setIsAccountActionLoading(false);
+        return;
+      }
+
+      const res = await fetch('/api/delete-user', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Error al eliminar el usuario.');
+      }
+
+      await client.auth.signOut();
+      setIsLoggedIn(false);
+      setIsDeleteAccountModalOpen(false);
+      setDeleteConfirmText('');
+      showToast('Tu cuenta ha sido eliminada permanentemente.', 'info');
+    } catch (err: any) {
+      console.error('Error al eliminar cuenta:', err);
+      showToast(err.message || 'Error al eliminar la cuenta.', 'error');
+    } finally {
+      setIsAccountActionLoading(false);
     }
   };
 
@@ -1398,6 +1487,26 @@ export default function Home() {
                     <span>Bloquear Pantalla</span>
                   </button>
                   <button 
+                    onClick={() => { setIsChangePasswordModalOpen(true); setIsUserDropdownOpen(false); }}
+                    className="w-full px-4 py-2 text-xs text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors text-left flex items-center gap-2 focus:outline-none"
+                  >
+                    <span className="material-symbols-outlined text-sm">key</span>
+                    <span>Modificar Contraseña</span>
+                  </button>
+                  
+                  <div className="h-px bg-outline-variant/10 my-1"></div>
+
+                  <button 
+                    onClick={() => { setIsDeleteAccountModalOpen(true); setIsUserDropdownOpen(false); }}
+                    className="w-full px-4 py-2 text-xs text-on-surface-variant hover:text-error hover:bg-error-container/10 transition-colors text-left flex items-center gap-2 focus:outline-none"
+                  >
+                    <span className="material-symbols-outlined text-sm text-error/85">delete_forever</span>
+                    <span className="text-error/85 font-semibold">Eliminar Cuenta</span>
+                  </button>
+
+                  <div className="h-px bg-outline-variant/10 my-1"></div>
+
+                  <button 
                     onClick={async () => {
                       if (supabase) {
                         await supabase.auth.signOut();
@@ -2144,6 +2253,120 @@ export default function Home() {
           onApprove={handleApproveDocument}
           existingSubaccounts={pgcAccounts.map(a => a.code)}
         />
+      )}
+
+      {/* Modal para Modificar Contraseña */}
+      {isChangePasswordModalOpen && (
+        <div className="fixed inset-0 bg-background/40 backdrop-blur-md flex items-center justify-center z-[999] p-4 animate-fade-in">
+          <div className="bg-surface border border-outline-variant/15 w-full max-w-md p-8 rounded-sm shadow-2xl relative text-left">
+            <h3 className="font-bold text-headline-sm text-primary mb-2">Modificar Contraseña</h3>
+            <p className="text-xs text-on-surface-variant mb-6">Ingresa tu nueva contraseña para actualizar el acceso a tu cuenta.</p>
+            
+            <form onSubmit={handleUpdatePassword} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="new-password">
+                  Nueva Contraseña (mín. 6 caracteres)
+                </label>
+                <div className="relative">
+                  <input 
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 pr-10 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                    placeholder="••••••••"
+                    disabled={isAccountActionLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus:ring-0 select-none"
+                    title={showNewPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showNewPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsChangePasswordModalOpen(false); setNewPasswordInput(''); }}
+                  disabled={isAccountActionLoading}
+                  className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAccountActionLoading || newPasswordInput.length < 6}
+                  className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-45 disabled:pointer-events-none flex items-center gap-1.5 focus:outline-none"
+                >
+                  {isAccountActionLoading && <span className="animate-spin material-symbols-outlined text-xs">progress_activity</span>}
+                  <span>Guardar Contraseña</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Eliminar Cuenta */}
+      {isDeleteAccountModalOpen && (
+        <div className="fixed inset-0 bg-background/40 backdrop-blur-md flex items-center justify-center z-[999] p-4 animate-fade-in">
+          <div className="bg-surface border border-error/20 w-full max-w-md p-8 rounded-sm shadow-2xl relative text-left">
+            <div className="flex items-center gap-2 text-error mb-3">
+              <span className="material-symbols-outlined text-xl">warning</span>
+              <h3 className="font-bold text-headline-sm text-error">Eliminar Cuenta Permanente</h3>
+            </div>
+            <p className="text-xs text-on-surface-variant leading-relaxed mb-6">
+              Esta acción es **irreversible**. Se eliminarán todos tus perfiles, documentos y asientos de diario. 
+              Para continuar, escribe la palabra <strong className="font-bold text-error">ELIMINAR</strong> a continuación.
+            </p>
+            
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="delete-confirm">
+                  Escribe la palabra de confirmación
+                </label>
+                <input 
+                  id="delete-confirm"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  required
+                  className="w-full bg-transparent border-b border-error/30 py-2.5 text-sm font-medium focus:outline-none focus:border-error transition-all uppercase placeholder:opacity-30"
+                  placeholder="ELIMINAR"
+                  disabled={isAccountActionLoading}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsDeleteAccountModalOpen(false); setDeleteConfirmText(''); }}
+                  disabled={isAccountActionLoading}
+                  className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={isAccountActionLoading || deleteConfirmText !== 'ELIMINAR'}
+                  className="px-5 py-2 bg-error text-white text-xs font-bold rounded-sm hover:bg-error/90 active:scale-[0.98] transition-all disabled:opacity-35 disabled:pointer-events-none flex items-center gap-1.5 focus:outline-none"
+                >
+                  {isAccountActionLoading && <span className="animate-spin material-symbols-outlined text-xs">progress_activity</span>}
+                  <span>Eliminar Cuenta</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Banner de error de conexión con Supabase */}
