@@ -212,6 +212,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Error fetching companies:', err);
+      setIsLoading(false);
     }
   };
 
@@ -462,6 +463,13 @@ export default function Home() {
       fetchData(selectedCompanyId);
     }
   }, [selectedCompanyId]);
+
+  // Cargar empresas al cambiar el estado de autenticación a activo
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchCompanies();
+    }
+  }, [isLoggedIn]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1978,6 +1986,76 @@ export default function Home() {
             </button>
           </nav>
 
+          {/* Buscador en Mobile */}
+          <div className="block md:hidden relative items-center mt-6">
+            <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-sm pointer-events-none">search</span>
+            <input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-surface border border-outline-variant/10 rounded-sm py-2 pl-8 pr-3 text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
+              placeholder="Buscar documentos..." 
+              type="text"
+            />
+          </div>
+
+          {/* Selector de empresa en Mobile */}
+          <div className="flex md:hidden flex-col gap-2 mt-4 p-3 bg-surface border border-outline-variant/10 rounded-sm">
+            <div className="flex items-center gap-1.5 select-none">
+              <span className="material-symbols-outlined text-[16px] text-on-surface-variant shrink-0">domain</span>
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Empresa Activa</span>
+            </div>
+            
+            <div className="relative flex items-center w-full mt-1">
+              <select
+                value={selectedCompanyId}
+                onChange={(e) => {
+                  const cid = e.target.value;
+                  setSelectedCompanyId(cid);
+                  localStorage.setItem('active_company_id', cid);
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="w-full bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none transition-colors truncate"
+              >
+                {companies.length === 0 ? (
+                  <option value="">Cargando empresas...</option>
+                ) : (
+                  companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.cif ? `(${c.cif})` : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+              <span className="material-symbols-outlined text-[16px] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">arrow_drop_down</span>
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => {
+                  setIsCreateCompanyModalOpen(true);
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary text-[10px] font-semibold transition-colors focus:outline-none focus:ring-0 active:scale-95"
+                title="Crear nueva empresa"
+              >
+                <span className="material-symbols-outlined text-xs font-bold">add</span>
+                <span>Añadir</span>
+              </button>
+              {selectedCompanyId && (
+                <button
+                  onClick={() => {
+                    handleDeleteCompany();
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className="flex items-center justify-center py-1 px-2.5 rounded-sm border border-outline-variant/15 hover:bg-error/5 hover:border-error/30 text-error transition-colors focus:outline-none focus:ring-0 active:scale-95"
+                  title="Eliminar empresa activa"
+                >
+                  <span className="material-symbols-outlined text-xs">delete</span>
+                </button>
+              )}
+            </div>
+          </div>
+
           <button 
             onClick={() => { setActiveTab('documents'); setIsMobileSidebarOpen(false); }}
             className="mt-8 w-full flex items-center justify-center gap-sm bg-primary text-white py-2.5 rounded-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all"
@@ -2060,10 +2138,10 @@ export default function Home() {
             )}
 
             {/* Separador vertical */}
-            <div className="h-5 w-px bg-outline-variant/20 shrink-0"></div>
+            <div className="hidden md:block h-5 w-px bg-outline-variant/20 shrink-0"></div>
 
             {/* Selector de empresa */}
-            <div className="flex items-center gap-1.5 sm:gap-2 select-none min-w-0">
+            <div className="hidden md:flex items-center gap-1.5 sm:gap-2 select-none min-w-0">
               <span className="material-symbols-outlined text-[16px] text-on-surface-variant shrink-0">domain</span>
               <div className="relative flex items-center min-w-0">
                 <select
@@ -2108,7 +2186,7 @@ export default function Home() {
           
           <div className="flex items-center gap-2 sm:gap-3 md:gap-4 shrink-0">
             {/* Search Toggle Icon */}
-            <div className="relative flex items-center">
+            <div className="hidden sm:block relative flex items-center">
               <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-sm pointer-events-none">search</span>
               <input 
                 value={searchQuery}
