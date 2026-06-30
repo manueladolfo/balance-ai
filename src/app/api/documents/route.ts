@@ -7,18 +7,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
 
-    // Fetch documents
-    const { data: documents, error: docError } = await supabaseAdmin
-      .from('documents')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { searchParams } = new URL(req.url);
+    const companyId = searchParams.get('companyId');
+
+    // Fetch documents (filter by company_id if provided)
+    let docQuery = supabaseAdmin.from('documents').select('*');
+    if (companyId) {
+      docQuery = docQuery.eq('company_id', companyId);
+    }
+    const { data: documents, error: docError } = await docQuery.order('created_at', { ascending: false });
 
     if (docError) {
       throw new Error('Error al consultar documentos de Supabase: ' + docError.message);
     }
 
-    // Fetch entries with lines
-    const { data: entries, error: entryError } = await supabaseAdmin
+    // Fetch entries with lines (filtered by document IDs belonging to the company)
+    let entryQuery = supabaseAdmin
       .from('accounting_entries')
       .select(`
         id,
@@ -36,6 +40,24 @@ export async function GET(req: NextRequest) {
           amount
         )
       `);
+
+    if (companyId) {
+      if (documents && documents.length > 0) {
+        const docIds = documents.map(d => d.id);
+        entryQuery = entryQuery.in('document_id', docIds);
+      } else {
+        // If there are no documents for this company, there can be no entries
+        const hasGeminiKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_google_gemini_api_key';
+        return NextResponse.json({
+          documents: [],
+          entries: [],
+          supabase: true,
+          hasGeminiKey
+        });
+      }
+    }
+
+    const { data: entries, error: entryError } = await entryQuery;
 
     if (entryError) {
       throw new Error('Error al consultar asientos de Supabase: ' + entryError.message);

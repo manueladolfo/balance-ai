@@ -6,6 +6,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const type = (formData.get('type') as 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro') || 'Factura';
+    const companyId = formData.get('companyId') as string;
 
     if (!file) {
       return NextResponse.json({ error: 'No se ha proporcionado ningún archivo.' }, { status: 400 });
@@ -49,7 +50,8 @@ export async function POST(req: NextRequest) {
         name,
         storage_path: storagePath,
         status: 'pending',
-        type
+        type,
+        company_id: companyId || null
       })
       .select()
       .single();

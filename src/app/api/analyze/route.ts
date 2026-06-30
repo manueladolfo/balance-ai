@@ -55,11 +55,16 @@ export async function POST(req: NextRequest) {
     // 2. Perform AI analysis with Gemini
     let resultJson: any = null;
 
-    // Retrieve PGC accounts to teach the AI
+    // Retrieve PGC accounts associated with the document's company to teach the AI
     let pgcContext = '';
-    const { data: accounts } = await supabaseAdmin.from('pgc_accounts').select('code, description');
-    if (accounts && accounts.length > 0) {
-      pgcContext = accounts.map(a => `${a.code}: ${a.description}`).join('\n');
+    if (doc.company_id) {
+      const { data: accounts } = await supabaseAdmin
+        .from('pgc_accounts')
+        .select('code, description')
+        .eq('company_id', doc.company_id);
+      if (accounts && accounts.length > 0) {
+        pgcContext = accounts.map(a => `${a.code}: ${a.description}`).join('\n');
+      }
     }
 
     // Download file bytes

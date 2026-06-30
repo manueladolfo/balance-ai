@@ -5,6 +5,13 @@ import jsPDF from 'jspdf';
 import EntryModal, { AccountingEntry } from '@/components/EntryModal';
 import { supabase } from '@/lib/supabase';
 
+interface Company {
+  id: string;
+  name: string;
+  cif?: string;
+  created_at: string;
+}
+
 interface Document {
   id: string;
   name: string;
@@ -13,6 +20,7 @@ interface Document {
   type: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro';
   ia_description?: string;
   created_at: string;
+  company_id?: string;
 }
 
 interface Message {
@@ -47,12 +55,20 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // DB Data states
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
   const [pgcAccounts, setPgcAccounts] = useState<any[]>([]);
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Company Modal states
+  const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [newCompanyCif, setNewCompanyCif] = useState('');
+  const [isCompanyActionLoading, setIsCompanyActionLoading] = useState(false);
 
   // Selection states
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
@@ -125,10 +141,45 @@ export default function Home() {
     }
   };
 
-  // 1. Fetch data on mount
-  const fetchData = async () => {
+  // 1. Fetch companies on mount
+  const fetchCompanies = async () => {
     try {
-      const res = await fetch('/api/documents');
+      const res = await fetch('/api/companies');
+      const data = await res.json();
+      if (res.ok && data.companies) {
+        setCompanies(data.companies);
+        if (data.companies.length > 0) {
+          // Attempt to restore selected company from localStorage
+          const savedCompanyId = localStorage.getItem('active_company_id');
+          const exists = data.companies.some((c: any) => c.id === savedCompanyId);
+          const defaultCompanyId = exists ? savedCompanyId : data.companies[0].id;
+          
+          setSelectedCompanyId(defaultCompanyId || '');
+          if (defaultCompanyId) {
+            localStorage.setItem('active_company_id', defaultCompanyId);
+            fetchData(defaultCompanyId);
+          }
+        } else {
+          // No companies at all, turn off loader
+          setIsLoading(false);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching companies:', err);
+    }
+  };
+
+  // 2. Fetch documents and PGC for a specific company
+  const fetchData = async (companyId?: string) => {
+    const targetCompanyId = companyId || selectedCompanyId;
+    if (!targetCompanyId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/documents?companyId=${targetCompanyId}`);
       const data = await res.json();
       if (res.ok) {
         setDocuments(data.documents || []);
@@ -139,7 +190,7 @@ export default function Home() {
         setSupabaseStatus('error');
       }
 
-      const pgcRes = await fetch('/api/pgc');
+      const pgcRes = await fetch(`/api/pgc?companyId=${targetCompanyId}`);
       const pgcData = await pgcRes.json();
       if (pgcRes.ok) {
         setPgcAccounts(pgcData.accounts || []);
@@ -153,8 +204,90 @@ export default function Home() {
     }
   };
 
+  // 3. Create a new company
+  const handleCreateCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCompanyName.trim()) return;
+
+    try {
+      setIsCompanyActionLoading(true);
+      const res = await fetch('/api/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCompanyName, cif: newCompanyCif })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al crear la empresa.');
+      }
+
+      const newCompany = data.company;
+      setCompanies(prev => [...prev, newCompany]);
+      setSelectedCompanyId(newCompany.id);
+      localStorage.setItem('active_company_id', newCompany.id);
+      
+      showToast(`Empresa "${newCompany.name}" creada correctamente.`, 'success');
+      setIsCreateCompanyModalOpen(false);
+      setNewCompanyName('');
+      setNewCompanyCif('');
+
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsCompanyActionLoading(false);
+    }
+  };
+
+  // 4. Delete the active company
+  const handleDeleteCompany = async () => {
+    if (!selectedCompanyId) return;
+
+    const companyToDelete = companies.find(c => c.id === selectedCompanyId);
+    if (!companyToDelete) return;
+
+    const confirmDelete = window.confirm(
+      `¿Estás absolutamente seguro de que deseas eliminar la empresa "${companyToDelete.name}"?\n\nEsta acción borrará de forma irreversible todas sus facturas, extractos contables, PGC y asientos del libro de diario asociados.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setIsCompanyActionLoading(true);
+      const res = await fetch(`/api/companies?id=${selectedCompanyId}`, {
+        method: 'DELETE'
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al eliminar la empresa.');
+      }
+
+      showToast(`Empresa "${companyToDelete.name}" eliminada correctamente.`, 'success');
+      
+      const updatedCompanies = companies.filter(c => c.id !== selectedCompanyId);
+      setCompanies(updatedCompanies);
+
+      if (updatedCompanies.length > 0) {
+        setSelectedCompanyId(updatedCompanies[0].id);
+        localStorage.setItem('active_company_id', updatedCompanies[0].id);
+      } else {
+        setSelectedCompanyId('');
+        localStorage.removeItem('active_company_id');
+        setDocuments([]);
+        setEntries([]);
+        setPgcAccounts([]);
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Error al eliminar la empresa.', 'error');
+    } finally {
+      setIsCompanyActionLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchData();
+    fetchCompanies();
     checkSupabaseConnection();
 
     // Check connection every 10 seconds
@@ -232,6 +365,13 @@ export default function Home() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Reactive hook to fetch data when selected company changes
+  useEffect(() => {
+    if (selectedCompanyId) {
+      fetchData(selectedCompanyId);
+    }
+  }, [selectedCompanyId]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -514,6 +654,9 @@ export default function Home() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', uploadType);
+    if (selectedCompanyId) {
+      formData.append('companyId', selectedCompanyId);
+    }
 
     try {
       // Step A: Upload file
@@ -548,7 +691,7 @@ export default function Home() {
       showToast(`Documento "${file.name}" procesado con éxito. Asiento contable generado.`, 'success');
       
       // Reload documents and entries
-      await fetchData();
+      await fetchData(selectedCompanyId);
 
       // Automatically open modal for the new entry
       const newEntry = entries.find(ent => ent.document_id === documentId);
@@ -556,7 +699,7 @@ export default function Home() {
         setActiveEntryForModal(newEntry);
       } else {
         // Fetch again to ensure we get the latest
-        const latestRes = await fetch('/api/documents');
+        const latestRes = await fetch(`/api/documents?companyId=${selectedCompanyId}`);
         const latestData = await latestRes.json();
         const latestEntry = latestData.entries?.find((ent: any) => ent.document_id === documentId);
         if (latestEntry) setActiveEntryForModal(latestEntry);
@@ -574,69 +717,132 @@ export default function Home() {
     }
   };
 
-  // 3. PGC Import flow
   const handlePgcUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const file = files[0];
-    const reader = new FileReader();
+    if (!selectedCompanyId) {
+      showToast('Por favor, selecciona o crea una empresa antes de importar el Plan Contable.', 'error');
+      return;
+    }
 
-    reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      if (!text) return;
+    const file = files[0];
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+
+    if (isPdf) {
+      setIsUploading(true);
+      setUploadProgress(10);
+      setProcessingFileName(file.name);
 
       try {
-        // Simple CSV parser: code,description
-        const lines = text.split('\n');
-        const accounts = [];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('subaccountDigits', subaccountDigits.toString());
+        formData.append('companyId', selectedCompanyId);
 
-        for (const line of lines) {
-          const parts = line.split(',');
-          if (parts.length >= 2) {
-            const code = parts[0].trim().replace(/"/g, '');
-            const description = parts[1].trim().replace(/"/g, '');
-            if (code && description) {
-              // Mark as operational if length matches digit configurations
-              const cleanCode = code.replace(/\./g, '');
-              const isOperational = cleanCode.length >= subaccountDigits;
-              accounts.push({
-                code,
-                description,
-                is_operational: isOperational
-              });
-            }
-          }
-        }
-
-        if (accounts.length === 0) {
-          throw new Error('No se detectaron cuentas válidas. Formato requerido: "codigo,descripcion" por línea.');
-        }
-
-        const res = await fetch('/api/pgc', {
+        setUploadProgress(30);
+        const res = await fetch('/api/pgc/upload-pdf', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accounts })
+          body: formData
         });
+        setUploadProgress(70);
 
-        if (res.ok) {
-          showToast(`Se han importado ${accounts.length} subcuentas al Plan Contable.`, 'success');
-          // Reload PGC
-          const pgcRes = await fetch('/api/pgc');
-          const pgcData = await pgcRes.json();
-          if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
-        } else {
-          const data = await res.json();
-          throw new Error(data.error || 'Error al guardar el plan contable.');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Error al procesar el Plan Contable en PDF.');
         }
+
+        setUploadProgress(90);
+        showToast(data.message || `Se han importado ${data.count} cuentas al Plan Contable.`, 'success');
+
+        // Reload PGC
+        const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`);
+        const pgcData = await pgcRes.json();
+        if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
 
       } catch (err: any) {
         console.error(err);
-        showToast(err.message || 'Error al procesar el archivo PGC.', 'error');
+        showToast(err.message || 'Error al procesar el archivo PDF del PGC.', 'error');
+      } finally {
+        setUploadProgress(100);
+        setTimeout(() => {
+          setIsUploading(false);
+          setUploadProgress(0);
+          setProcessingFileName('');
+        }, 1000);
       }
-    };
+    } else {
+      const reader = new FileReader();
 
-    reader.readAsText(file);
+      reader.onload = async (event) => {
+        const text = event.target?.result as string;
+        if (!text) return;
+
+        try {
+          // Simple CSV parser: code,description
+          const lines = text.split('\n');
+          const accounts = [];
+
+          for (const line of lines) {
+            const parts = line.split(',');
+            if (parts.length >= 2) {
+              const code = parts[0].trim().replace(/"/g, '');
+              const description = parts[1].trim().replace(/"/g, '');
+              if (code && description) {
+                // Mark as operational if length matches digit configurations
+                const cleanCode = code.replace(/\./g, '');
+                const isOperational = cleanCode.length >= subaccountDigits;
+                accounts.push({
+                  code,
+                  description,
+                  is_operational: isOperational
+                });
+              }
+            }
+          }
+
+          if (accounts.length === 0) {
+            throw new Error('No se detectaron cuentas válidas. Formato requerido: "codigo,descripcion" por línea.');
+          }
+
+          setIsUploading(true);
+          setUploadProgress(30);
+          setProcessingFileName(file.name);
+
+          const res = await fetch('/api/pgc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accounts, companyId: selectedCompanyId })
+          });
+
+          setUploadProgress(80);
+
+          if (res.ok) {
+            showToast(`Se han importado ${accounts.length} subcuentas al Plan Contable.`, 'success');
+            // Reload PGC
+            const pgcRes = await fetch(`/api/pgc?companyId=${selectedCompanyId}`);
+            const pgcData = await pgcRes.json();
+            if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
+          } else {
+            const data = await res.json();
+            throw new Error(data.error || 'Error al guardar el plan contable.');
+          }
+
+        } catch (err: any) {
+          console.error(err);
+          showToast(err.message || 'Error al procesar el archivo PGC.', 'error');
+        } finally {
+          setUploadProgress(100);
+          setTimeout(() => {
+            setIsUploading(false);
+            setUploadProgress(0);
+            setProcessingFileName('');
+          }, 1000);
+        }
+      };
+
+      reader.readAsText(file);
+    }
   };
 
   // Helper to add missing subaccounts directly in the app
@@ -1407,7 +1613,7 @@ export default function Home() {
         
         {/* Top Bar Header */}
         <header className="flex justify-between items-center px-8 w-full shrink-0 h-16 bg-surface border-b border-outline-variant/5">
-          <div className="flex items-center gap-md flex-1">
+          <div className="flex items-center gap-6 flex-1">
             {activeTab === 'dashboard' && (
               <div className="flex items-center gap-sm">
                 <span className="font-bold text-headline-md text-primary font-headline-md">Histórico de Documentos</span>
@@ -1419,6 +1625,52 @@ export default function Home() {
             {activeTab === 'settings' && (
               <span className="font-bold text-headline-md text-primary font-headline-md">Configuración del Sistema</span>
             )}
+
+            {/* Separador vertical */}
+            <div className="h-5 w-px bg-outline-variant/20"></div>
+
+            {/* Selector de empresa */}
+            <div className="flex items-center gap-2 select-none">
+              <span className="material-symbols-outlined text-[16px] text-on-surface-variant">domain</span>
+              <div className="relative flex items-center">
+                <select
+                  value={selectedCompanyId}
+                  onChange={(e) => {
+                    const cid = e.target.value;
+                    setSelectedCompanyId(cid);
+                    localStorage.setItem('active_company_id', cid);
+                  }}
+                  className="bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none min-w-[150px] transition-colors"
+                >
+                  {companies.length === 0 ? (
+                    <option value="">Cargando empresas...</option>
+                  ) : (
+                    companies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.cif ? `(${c.cif})` : ''}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <span className="material-symbols-outlined text-[16px] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">arrow_drop_down</span>
+              </div>
+              <button
+                onClick={() => setIsCreateCompanyModalOpen(true)}
+                className="p-1 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95"
+                title="Crear nueva empresa"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">add</span>
+              </button>
+              {selectedCompanyId && (
+                <button
+                  onClick={handleDeleteCompany}
+                  className="p-1 rounded-sm border border-outline-variant/15 hover:bg-error/5 hover:border-error/30 text-error flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95"
+                  title="Eliminar empresa activa"
+                >
+                  <span className="material-symbols-outlined text-sm">delete</span>
+                </button>
+              )}
+            </div>
           </div>
           
           <div className="flex items-center gap-md">
@@ -2032,24 +2284,24 @@ export default function Home() {
 
                     <div className="h-px bg-outline-variant/10"></div>
 
-                    {/* CSV upload PGC button */}
+                    {/* CSV/PDF upload PGC button */}
                     <div className="space-y-2">
                       <button 
                         onClick={() => pgcInputRef.current?.click()}
                         className="w-full flex items-center justify-center gap-2 border border-outline-variant/15 hover:bg-surface-container-low text-xs py-2.5 rounded-sm text-primary font-semibold transition-colors focus:outline-none select-none"
                       >
                         <span className="material-symbols-outlined text-sm">table_chart</span>
-                        <span>Importar Plan Contable (CSV)</span>
+                        <span>Importar Plan Contable (CSV / PDF)</span>
                       </button>
                       <input 
                         ref={pgcInputRef}
                         onChange={handlePgcUpload}
                         type="file" 
-                        accept=".csv,.txt" 
+                        accept=".csv,.txt,.pdf" 
                         className="hidden"
                       />
                       <p className="text-[9px] text-on-surface-variant/60 text-center select-none">
-                        Mapee su catálogo de cuentas contables de Sage o ERP en formato CSV.
+                        Mapee su catálogo de cuentas contables en formato CSV o PDF.
                       </p>
                     </div>
                   </div>
@@ -2365,6 +2617,68 @@ export default function Home() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Crear Empresa */}
+      {isCreateCompanyModalOpen && (
+        <div className="fixed inset-0 bg-background/40 backdrop-blur-md flex items-center justify-center z-[999] p-4 animate-fade-in">
+          <div className="bg-surface border border-outline-variant/15 w-full max-w-md p-8 rounded-sm shadow-2xl relative text-left">
+            <h3 className="font-bold text-headline-sm text-primary mb-2">Crear Nueva Empresa</h3>
+            <p className="text-xs text-on-surface-variant mb-6">Da de alta una empresa para clasificar y organizar de forma independiente sus facturas, asientos contables y PGC.</p>
+            
+            <form onSubmit={handleCreateCompany} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="company-name">
+                  Nombre de la Empresa *
+                </label>
+                <input 
+                  id="company-name"
+                  type="text"
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                  required
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="Ej. Mi Empresa S.L."
+                  disabled={isCompanyActionLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" htmlFor="company-cif">
+                  CIF / NIF (Opcional)
+                </label>
+                <input 
+                  id="company-cif"
+                  type="text"
+                  value={newCompanyCif}
+                  onChange={(e) => setNewCompanyCif(e.target.value)}
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  placeholder="Ej. B12345678"
+                  disabled={isCompanyActionLoading}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsCreateCompanyModalOpen(false); setNewCompanyName(''); setNewCompanyCif(''); }}
+                  disabled={isCompanyActionLoading}
+                  className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCompanyActionLoading || !newCompanyName.trim()}
+                  className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-45 disabled:pointer-events-none flex items-center gap-1.5 focus:outline-none"
+                >
+                  {isCompanyActionLoading && <span className="animate-spin material-symbols-outlined text-xs">progress_activity</span>}
+                  <span>Crear Empresa</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
