@@ -639,7 +639,7 @@ export default function Home() {
           <div className="w-64 h-64 flex items-center justify-center mb-16">
             <img 
               alt="Balance AI Logo" 
-              className="w-full h-full object-contain" 
+              className="w-full h-full object-contain logo-invert" 
               src="/logo.png" 
             />
           </div>
@@ -717,7 +717,7 @@ export default function Home() {
           <div className="w-48 h-48 flex items-center justify-center mb-8">
             <img 
               alt="Balance AI Logo" 
-              className="w-full h-full object-contain" 
+              className="w-full h-full object-contain logo-invert" 
               src="/logo.png" 
             />
           </div>
@@ -805,7 +805,7 @@ export default function Home() {
           {/* Logo & Brand Header - Centrado y Grande (x4), sin letras ni cajas pesadas */}
           <div className="flex justify-center mb-10 pt-4 select-none">
             <div className="flex items-center justify-center w-40 h-40 shrink-0">
-              <img alt="Balance AI Logo" className="w-full h-full object-contain" src="/logo.png" />
+              <img alt="Balance AI Logo" className="w-full h-full object-contain logo-invert" src="/logo.png" />
             </div>
           </div>
 

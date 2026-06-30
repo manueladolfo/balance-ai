@@ -185,3 +185,12 @@
 .font-body-sm {
   font-family: var(--font-inter), sans-serif;
 }
+
+/* Logo inversion for dark mode, preserving the green accent */
+.logo-invert {
+  transition: filter 0.3s ease;
+}
+
+.dark .logo-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
