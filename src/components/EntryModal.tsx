@@ -43,6 +43,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const totalDebe = debeLines.reduce((sum, l) => sum + l.amount, 0);
   const totalHaber = haberLines.reduce((sum, l) => sum + l.amount, 0);
 
+  // Equalize rows for visual alignment — pad shorter side with empty rows
+  const maxRows = Math.max(debeLines.length, haberLines.length, 3);
+
   // Check for any subaccount in the entry that doesn't exist in PGC
   const missingAccounts = entry.lines.filter(l => !existingSubaccounts.includes(l.subaccount_code));
 
@@ -53,7 +56,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     // Title
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(20);
-    doc.setTextColor(4, 22, 39); // Primary Navy color
+    doc.setTextColor(4, 22, 39);
     doc.text('COMPROBANTE DE ASIENTO CONTABLE', 20, 25);
 
     doc.setFontSize(10);
@@ -120,7 +123,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     doc.setFontSize(10);
     doc.setFillColor(248, 249, 255);
     doc.rect(20, y, 170, 8, 'F');
-    doc.setTextColor(0, 109, 55); // Secondary green color
+    doc.setTextColor(0, 109, 55);
     doc.text('HABER (Pasivos / Patrimonio)', 22, y + 6);
     
     y += 12;
@@ -158,20 +161,72 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     doc.save(`Asiento_${entry.reference || entry.entry_number}.pdf`);
   };
 
+  const renderDebeRow = (line: EntryLine | null, index: number) => {
+    if (!line) {
+      return (
+        <tr key={`debe-empty-${index}`} className="h-[52px]">
+          <td className="border-b border-r border-outline-variant/8 px-4 py-3"></td>
+          <td className="border-b border-r border-outline-variant/8 px-4 py-3"></td>
+          <td className="border-b border-outline-variant/8 px-4 py-3"></td>
+        </tr>
+      );
+    }
+    const isMissing = !existingSubaccounts.includes(line.subaccount_code);
+    const cleanCode = line.subaccount_code.replace(/\./g, '');
+    return (
+      <tr key={`debe-${index}`} className={`h-[52px] transition-colors ${index % 2 === 1 ? 'bg-primary/[0.015]' : ''} hover:bg-primary/[0.04]`}>
+        <td className={`border-b border-r border-outline-variant/8 px-4 py-3 font-mono text-[11px] font-bold text-center align-top ${isMissing ? 'text-error' : 'text-primary'}`}>
+          {cleanCode}
+          {isMissing && <span className="text-[7px] block text-error font-sans font-semibold uppercase tracking-wider mt-0.5 leading-none">(No creada)</span>}
+        </td>
+        <td className="border-b border-r border-outline-variant/8 px-4 py-3 text-[11px] text-on-surface leading-snug align-top">{line.subaccount_desc}</td>
+        <td className="border-b border-outline-variant/8 px-4 py-3 text-right font-mono text-[11px] text-primary font-bold tabular-nums align-top">
+          {line.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </td>
+      </tr>
+    );
+  };
+
+  const renderHaberRow = (line: EntryLine | null, index: number) => {
+    if (!line) {
+      return (
+        <tr key={`haber-empty-${index}`} className="h-[52px]">
+          <td className="border-b border-r border-outline-variant/8 px-4 py-3"></td>
+          <td className="border-b border-r border-outline-variant/8 px-4 py-3"></td>
+          <td className="border-b border-outline-variant/8 px-4 py-3"></td>
+        </tr>
+      );
+    }
+    const isMissing = !existingSubaccounts.includes(line.subaccount_code);
+    const cleanCode = line.subaccount_code.replace(/\./g, '');
+    return (
+      <tr key={`haber-${index}`} className={`h-[52px] transition-colors ${index % 2 === 1 ? 'bg-secondary/[0.015]' : ''} hover:bg-secondary/[0.04]`}>
+        <td className={`border-b border-r border-outline-variant/8 px-4 py-3 font-mono text-[11px] font-bold text-center align-top ${isMissing ? 'text-error' : 'text-secondary'}`}>
+          {cleanCode}
+          {isMissing && <span className="text-[7px] block text-error font-sans font-semibold uppercase tracking-wider mt-0.5 leading-none">(No creada)</span>}
+        </td>
+        <td className="border-b border-r border-outline-variant/8 px-4 py-3 text-[11px] text-on-surface leading-snug align-top">{line.subaccount_desc}</td>
+        <td className="border-b border-outline-variant/8 px-4 py-3 text-right font-mono text-[11px] text-secondary font-bold tabular-nums align-top">
+          {line.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm bg-background/60" id="entry-modal">
-      <div className="bg-surface w-full max-w-4xl h-auto max-h-[90vh] rounded-md border border-outline-variant/10 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 shadow-2xl mx-auto my-auto">
+      <div className="bg-surface w-full max-w-5xl h-auto max-h-[92vh] rounded-md border border-outline-variant/10 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 shadow-2xl mx-auto my-auto">
         
-        {/* Modal Header - Minimalista e integrado */}
-        <div className="bg-surface-container-low px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 select-none border-b border-outline-variant/10">
+        {/* Modal Header */}
+        <div className="bg-surface-container-low px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0 select-none border-b border-outline-variant/10">
           <div className="flex items-center gap-4">
             <div className="flex flex-col text-left">
-              <span className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">Detalles del Asiento</span>
+              <span className="text-on-surface-variant text-[9px] font-bold uppercase tracking-widest">Detalles del Asiento</span>
               <h3 className="text-primary font-bold text-sm tracking-tight">Ref. Documento: {entry.reference || 'N/A'}</h3>
             </div>
-            <div className="h-8 w-px bg-outline-variant/15 mx-2 hidden sm:block"></div>
+            <div className="h-8 w-px bg-outline-variant/15 mx-1 hidden sm:block"></div>
             <div className="flex flex-col text-left hidden sm:flex">
-              <span className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">Fecha de Contabilización</span>
+              <span className="text-on-surface-variant text-[9px] font-bold uppercase tracking-widest">Fecha de Contabilización</span>
               <p className="text-primary font-mono text-xs">{entry.entry_date}</p>
             </div>
           </div>
@@ -189,9 +244,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           </div>
         </div>
 
-        {/* Warning Box for missing subaccounts - Estilo minimalista rosa suave */}
+        {/* Warning Box for missing subaccounts */}
         {missingAccounts.length > 0 && (
-          <div className="bg-[#ffdad6]/40 border-b border-error/10 px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="bg-[#ffdad6]/40 border-b border-error/10 px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
             <span className="material-symbols-outlined text-error material-symbols-fill shrink-0 text-lg">warning</span>
             <div className="text-[#93000a] text-xs font-semibold flex-1 text-left leading-relaxed">
               <span className="font-bold">Aviso de Sincronización:</span> La subcuenta{' '}
@@ -215,121 +270,93 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           </div>
         )}
 
-        {/* Content Split View - Grid responsive que se apila en tablet/movil */}
-        <div className="flex-1 overflow-y-auto lg:overflow-hidden grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-outline-variant/10 bg-surface-container-low/10">
-          
-          {/* DEBE Section */}
-          <div className="flex flex-col lg:h-full lg:overflow-hidden">
-            <div className="bg-primary/[0.04] px-6 py-2.5 flex justify-between items-center border-b border-outline-variant/10 select-none">
-              <span className="font-bold text-primary tracking-wider text-[10px] uppercase">DEBE (Cargo)</span>
-              <span className="text-[10px] text-primary/80 font-bold uppercase tracking-wider">Activos / Gastos</span>
-            </div>
+        {/* Content: Two-Column DEBE / HABER Layout */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-1 lg:grid-cols-2 min-h-0">
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-surface">
-              <table className="w-full text-left border-collapse border border-outline-variant/10">
-                <thead className="sticky top-0 bg-surface-container-lowest z-10">
-                  <tr className="text-[9px] text-primary font-bold uppercase tracking-wider select-none bg-primary/[0.02]">
-                    <th className="border border-outline-variant/10 px-4 py-2.5 w-24 text-center">Subcuenta</th>
-                    <th className="border border-outline-variant/10 px-4 py-2.5">Descripción</th>
-                    <th className="border border-outline-variant/10 px-4 py-2.5 text-right w-28">Importe</th>
-                  </tr>
-                </thead>
-                <tbody className="text-xs">
-                  {debeLines.map((l, index) => {
-                    const isMissing = !existingSubaccounts.includes(l.subaccount_code);
-                    const cleanCode = l.subaccount_code.replace(/\./g, '');
-                    return (
-                      <tr key={index} className="hover:bg-primary/[0.03] transition-colors">
-                        <td className={`border border-outline-variant/10 px-4 py-2.5 font-mono font-bold text-center ${isMissing ? 'text-error' : 'text-primary'}`}>
-                          {cleanCode}
-                          {isMissing && <span className="text-[7px] block text-error font-sans font-semibold uppercase tracking-wider mt-0.5">(No creada)</span>}
-                        </td>
-                        <td className="border border-outline-variant/10 px-4 py-2.5 text-on-surface font-medium">{l.subaccount_desc}</td>
-                        <td className="border border-outline-variant/10 px-4 py-2.5 text-right font-mono text-primary font-bold">
-                          {l.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {debeLines.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="border border-outline-variant/10 px-4 py-6 text-center text-on-surface-variant italic">Sin registros en el Debe</td>
+            {/* DEBE Column */}
+            <div className="flex flex-col border-b lg:border-b-0 lg:border-r border-outline-variant/10">
+              {/* Column Header Bar */}
+              <div className="bg-primary px-5 py-2.5 flex justify-between items-center select-none shrink-0">
+                <span className="font-bold text-white tracking-wider text-[10px] uppercase">DEBE (Cargo)</span>
+                <span className="text-[9px] text-white/70 font-bold uppercase tracking-wider">Activos / Gastos</span>
+              </div>
+              
+              {/* Table */}
+              <div className="bg-surface">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="text-[9px] text-primary font-bold uppercase tracking-wider select-none bg-primary/[0.04] border-b border-outline-variant/10">
+                      <th className="px-4 py-2.5 w-[90px] text-center border-r border-outline-variant/8">Subcuenta</th>
+                      <th className="px-4 py-2.5 border-r border-outline-variant/8">Descripción</th>
+                      <th className="px-4 py-2.5 text-right w-[100px]">Importe</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="bg-primary/[0.02] border-t border-outline-variant/10 px-6 py-3.5 flex justify-between items-center select-none">
-              <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider">Total Debe</span>
-              <span className="text-base font-bold font-mono text-primary">
-                ${totalDebe.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-          </div>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: maxRows }).map((_, i) => 
+                      renderDebeRow(debeLines[i] || null, i)
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-          {/* HABER Section */}
-          <div className="flex flex-col lg:h-full lg:overflow-hidden">
-            <div className="bg-secondary/[0.04] px-6 py-2.5 flex justify-between items-center border-b border-outline-variant/10 select-none">
-              <span className="font-bold text-secondary tracking-wider text-[10px] uppercase">HABER (Abono)</span>
-              <span className="text-[10px] text-secondary/80 font-bold uppercase tracking-wider">Pasivos / Patrimonio</span>
+              {/* Total Row */}
+              <div className="bg-primary/[0.04] border-t-2 border-primary/20 px-5 py-3 flex justify-between items-center select-none shrink-0 mt-auto">
+                <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Total Debe:</span>
+                <span className="text-lg font-bold font-mono text-primary tabular-nums">
+                  ${totalDebe.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
-            
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-surface">
-              <table className="w-full text-left border-collapse border border-outline-variant/10">
-                <thead className="sticky top-0 bg-surface-container-lowest z-10">
-                  <tr className="text-[9px] text-secondary font-bold uppercase tracking-wider select-none bg-secondary/[0.02]">
-                    <th className="border border-outline-variant/10 px-4 py-2.5 w-24 text-center">Subcuenta</th>
-                    <th className="border border-outline-variant/10 px-4 py-2.5">Descripción</th>
-                    <th className="border border-outline-variant/10 px-4 py-2.5 text-right w-28">Importe</th>
-                  </tr>
-                </thead>
-                <tbody className="text-xs">
-                  {haberLines.map((l, index) => {
-                    const isMissing = !existingSubaccounts.includes(l.subaccount_code);
-                    const cleanCode = l.subaccount_code.replace(/\./g, '');
-                    return (
-                      <tr key={index} className="hover:bg-secondary/[0.03] transition-colors">
-                        <td className={`border border-outline-variant/10 px-4 py-2.5 font-mono font-bold text-center ${isMissing ? 'text-error' : 'text-secondary'}`}>
-                          {cleanCode}
-                          {isMissing && <span className="text-[7px] block text-error font-sans font-semibold uppercase tracking-wider mt-0.5">(No creada)</span>}
-                        </td>
-                        <td className="border border-outline-variant/10 px-4 py-2.5 text-on-surface font-medium">{l.subaccount_desc}</td>
-                        <td className="border border-outline-variant/10 px-4 py-2.5 text-right font-mono text-secondary font-bold">
-                          {l.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {haberLines.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="border border-outline-variant/10 px-4 py-6 text-center text-on-surface-variant italic">Sin registros en el Haber</td>
+
+            {/* HABER Column */}
+            <div className="flex flex-col">
+              {/* Column Header Bar */}
+              <div className="bg-secondary px-5 py-2.5 flex justify-between items-center select-none shrink-0">
+                <span className="font-bold text-white tracking-wider text-[10px] uppercase">HABER (Abono)</span>
+                <span className="text-[9px] text-white/70 font-bold uppercase tracking-wider">Pasivos / Patrimonio</span>
+              </div>
+              
+              {/* Table */}
+              <div className="bg-surface">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="text-[9px] text-secondary font-bold uppercase tracking-wider select-none bg-secondary/[0.04] border-b border-outline-variant/10">
+                      <th className="px-4 py-2.5 w-[90px] text-center border-r border-outline-variant/8">Subcuenta</th>
+                      <th className="px-4 py-2.5 border-r border-outline-variant/8">Descripción</th>
+                      <th className="px-4 py-2.5 text-right w-[100px]">Importe</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="bg-secondary/[0.02] border-t border-outline-variant/10 px-6 py-3.5 flex justify-between items-center select-none">
-              <span className="text-[10px] font-bold text-secondary/70 uppercase tracking-wider">Total Haber</span>
-              <span className="text-base font-bold font-mono text-secondary">
-                ${totalHaber.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-          </div>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: maxRows }).map((_, i) => 
+                      renderHaberRow(haberLines[i] || null, i)
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
+              {/* Total Row */}
+              <div className="bg-secondary/[0.04] border-t-2 border-secondary/20 px-5 py-3 flex justify-between items-center select-none shrink-0 mt-auto">
+                <span className="text-[10px] font-bold text-secondary uppercase tracking-widest">Total Haber:</span>
+                <span className={`text-lg font-bold font-mono tabular-nums ${Math.abs(totalDebe - totalHaber) < 0.01 ? 'text-secondary' : 'text-error'}`}>
+                  ${totalHaber.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+          </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-surface-container-low px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center shrink-0 border-t border-outline-variant/10 select-none">
+        <div className="bg-surface-container-low px-6 py-3.5 flex flex-col sm:flex-row gap-3 justify-between items-center shrink-0 border-t border-outline-variant/10 select-none">
           <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
             {Math.abs(totalDebe - totalHaber) < 0.01 ? (
-              <div className="flex items-center gap-1.5 bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-sm">
+              <div className="flex items-center gap-1.5 bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1.5 rounded-sm">
                 <span className="material-symbols-outlined text-[14px] material-symbols-fill text-secondary">check_circle</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider">Asiento Cuadrado</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 bg-error/10 text-error border border-error/20 px-3 py-1 rounded-sm">
+              <div className="flex items-center gap-1.5 bg-error/10 text-error border border-error/20 px-3 py-1.5 rounded-sm">
                 <span className="material-symbols-outlined text-[14px] material-symbols-fill text-error">error</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider">Asiento Descuadrado</span>
               </div>
