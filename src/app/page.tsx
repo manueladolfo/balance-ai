@@ -2429,7 +2429,7 @@ export default function Home() {
         </header>
 
         {/* Dynamic Tab Content Area */}
-        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-lg pb-28 md:pb-lg gap-lg min-h-0">
+        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-lg pb-36 md:pb-lg gap-lg min-h-0">
           
           {/* ESTADO VACÍO CUANDO NO HAY EMPRESAS */}
           {companies.length === 0 && !isLoading && activeTab !== 'settings' && (
@@ -2823,7 +2823,7 @@ export default function Home() {
               </section>
 
               {/* Gemini Chat Area - Reubicado abajo en horizontal de ancho completo con optimización móvil */}
-              <div className="h-72 md:h-80 flex flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 select-none shadow-precision mt-4">
+              <div className="h-72 md:h-80 flex flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 shadow-precision mt-4">
                 {/* Chat Header - Diseño integrado y minimalista */}
                 <div className="bg-surface-container-low px-4 md:px-6 py-3.5 flex items-center justify-between shrink-0 border-b border-outline-variant/10">
                   <div className="flex items-center gap-2 text-primary">
