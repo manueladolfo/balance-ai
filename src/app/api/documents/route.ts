@@ -164,3 +164,93 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Error al actualizar el documento.' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
+    }
+
+    const { documentIds } = await req.json();
+    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+      return NextResponse.json({ error: 'Debe proporcionar al menos un ID de documento.' }, { status: 400 });
+    }
+
+    // Fetch documents to verify ownership and get storage paths
+    const { data: docs, error: docsError } = await supabaseAdmin
+      .from('documents')
+      .select('id, company_id, storage_path, storage_type')
+      .in('id', documentIds);
+
+    if (docsError || !docs || docs.length === 0) {
+      return NextResponse.json({ error: 'No se encontraron los documentos solicitados.' }, { status: 404 });
+    }
+
+    // Verify all documents belong to companies owned by this user
+    const companyIds = [...new Set(docs.map(d => d.company_id).filter(Boolean))];
+    if (companyIds.length > 0) {
+      const { data: companies, error: compError } = await supabaseAdmin
+        .from('companies')
+        .select('id')
+        .in('id', companyIds)
+        .eq('user_id', userId);
+
+      if (compError || !companies || companies.length !== companyIds.length) {
+        return NextResponse.json({ error: 'No autorizado para eliminar estos documentos.' }, { status: 403 });
+      }
+    }
+
+    const validDocIds = docs.map(d => d.id);
+
+    // 1. Delete entry_lines associated with accounting_entries of these documents
+    const { data: entries } = await supabaseAdmin
+      .from('accounting_entries')
+      .select('id')
+      .in('document_id', validDocIds);
+
+    if (entries && entries.length > 0) {
+      const entryIds = entries.map(e => e.id);
+      await supabaseAdmin
+        .from('entry_lines')
+        .delete()
+        .in('entry_id', entryIds);
+    }
+
+    // 2. Delete accounting_entries
+    await supabaseAdmin
+      .from('accounting_entries')
+      .delete()
+      .in('document_id', validDocIds);
+
+    // 3. Delete files from Supabase Storage (only for supabase-stored docs)
+    const storagePaths = docs
+      .filter(d => (!d.storage_type || d.storage_type === 'supabase') && d.storage_path)
+      .map(d => d.storage_path);
+
+    if (storagePaths.length > 0) {
+      await supabaseAdmin.storage
+        .from('accounting-docs')
+        .remove(storagePaths);
+    }
+
+    // 4. Delete the documents themselves
+    const { error: deleteError } = await supabaseAdmin
+      .from('documents')
+      .delete()
+      .in('id', validDocIds);
+
+    if (deleteError) {
+      throw new Error('Error al eliminar documentos: ' + deleteError.message);
+    }
+
+    return NextResponse.json({ success: true, deletedCount: validDocIds.length });
+  } catch (error: any) {
+    console.error('Delete documents API error:', error);
+    return NextResponse.json({ error: error.message || 'Error al eliminar documentos.' }, { status: 500 });
+  }
+}

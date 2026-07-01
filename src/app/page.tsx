@@ -1833,6 +1833,64 @@ export default function Home() {
     );
   };
 
+  // Delete selected documents
+  const handleDeleteSelectedDocs = async () => {
+    if (selectedDocIds.length === 0) return;
+
+    const count = selectedDocIds.length;
+    const confirmMsg = count === 1
+      ? '¿Estás seguro de que deseas eliminar este documento? Se borrarán también sus asientos contables asociados.'
+      : `¿Estás seguro de que deseas eliminar ${count} documentos? Se borrarán también sus asientos contables asociados.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const token = supabase ? (await supabase.auth.getSession()).data.session?.access_token : null;
+      const res = await fetch('/api/documents', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ documentIds: selectedDocIds }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        showToast(result.error || 'Error al eliminar documentos.', 'error');
+        return;
+      }
+
+      // Remove deleted docs from local IndexedDB if any were local
+      if (typeof window !== 'undefined') {
+        for (const docId of selectedDocIds) {
+          const doc = documents.find(d => d.id === docId);
+          if (doc?.storage_type === 'local') {
+            try {
+              const dbReq = indexedDB.open('BalanceAI_LocalDocs', 1);
+              dbReq.onsuccess = () => {
+                const db = dbReq.result;
+                if (db.objectStoreNames.contains('files')) {
+                  const tx = db.transaction('files', 'readwrite');
+                  tx.objectStore('files').delete(docId);
+                }
+              };
+            } catch { /* ignore indexeddb errors */ }
+          }
+        }
+      }
+
+      // Update local state
+      setDocuments(prev => prev.filter(d => !selectedDocIds.includes(d.id)));
+      setEntries(prev => prev.filter(e => !selectedDocIds.includes(e.document_id)));
+      setSelectedDocIds([]);
+
+      showToast(`${result.deletedCount || count} documento${count > 1 ? 's' : ''} eliminado${count > 1 ? 's' : ''} correctamente.`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Error al eliminar documentos.', 'error');
+    }
+  };
+
   // Filter documents by search query, status and date
   const filteredDocs = documents.filter(doc => {
     const query = searchQuery.toLowerCase();
@@ -2719,7 +2777,7 @@ export default function Home() {
 
           {/* TAB 1: PANEL DE CONTROL (HISTORIAL Y CHAT HORIZONTAL ABAJO) */}
           {companies.length > 0 && activeTab === 'dashboard' && (
-            <div className="flex-1 flex flex-col gap-4 md:gap-8 overflow-y-auto md:overflow-hidden pb-16 md:pb-0 min-h-0 pt-4">
+            <div className="flex-1 flex flex-col gap-4 md:gap-8 overflow-y-auto pb-16 md:pb-8 min-h-0 pt-4">
               
               {/* Fila de Tarjetas KPI - Más altas, espaciadas y con sombras sutiles */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 shrink-0">
@@ -2917,7 +2975,17 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-                <div className="relative flex justify-center w-full sm:w-auto">
+                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
+                  {/* Botón Eliminar Seleccionados */}
+                  <button 
+                    onClick={handleDeleteSelectedDocs}
+                    disabled={selectedDocIds.length === 0}
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-error/10 text-error border border-error/20 rounded-sm text-xs font-semibold hover:bg-error/20 active:scale-[0.98] transition-all disabled:opacity-0 disabled:pointer-events-none focus:outline-none"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">delete</span>
+                    Eliminar ({selectedDocIds.length})
+                  </button>
+                  <div className="relative">
                   <button 
                     onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
                     disabled={selectedDocIds.length === 0}
@@ -2962,10 +3030,11 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+                </div>
               </div>
 
               {/* Tabla de Historial de Documentos */}
-              <section className="flex-1 flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden min-h-0 shadow-precision">
+              <section className="flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden shadow-precision" style={{ minHeight: '400px' }}>
                 <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
                   {isLoading ? (
                     <div className="h-full w-full flex items-center justify-center py-10 text-on-surface-variant text-xs">
@@ -3119,7 +3188,7 @@ export default function Home() {
               </section>
 
               {/* Gemini Chat Area - Reubicado abajo en horizontal de ancho completo con optimización móvil */}
-              <div className="h-72 md:h-80 flex flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 shadow-precision mt-4">
+              <div className="h-80 md:h-[380px] flex flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 shadow-precision mt-4">
                 {/* Chat Header - Diseño integrado y minimalista */}
                 <div className="bg-surface-container-low px-4 md:px-6 py-3.5 flex items-center justify-between shrink-0 border-b border-outline-variant/10">
                   <div className="flex items-center gap-2 text-primary">
