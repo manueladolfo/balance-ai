@@ -3215,14 +3215,14 @@ export default function Home() {
                         className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
                       >
                         <span>ContaPlus 2008 (TXT)</span>
-                        <span className="text-[9px] bg-primary-container text-on-primary-container px-1 py-0.5 rounded-sm">ASCII</span>
+                        <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Texto ANSI</span>
                       </button>
                       <button 
                         onClick={() => { handleExportContaplus('2008', 'csv'); setIsExportDropdownOpen(false); }}
                         className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
                       >
                         <span>ContaPlus 2008 (CSV)</span>
-                        <span className="text-[9px] bg-secondary-container/30 text-secondary px-1 py-0.5 rounded-sm">Delimited</span>
+                        <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Excel / CSV</span>
                       </button>
                       <div className="h-px bg-outline-variant/5 my-1"></div>
                       <button 
@@ -3230,14 +3230,14 @@ export default function Home() {
                         className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
                       >
                         <span>ContaPlus 2011 (TXT)</span>
-                        <span className="text-[9px] bg-primary-container text-on-primary-container px-1 py-0.5 rounded-sm">ASCII</span>
+                        <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Texto ANSI</span>
                       </button>
                       <button 
                         onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }}
                         className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
                       >
                         <span>ContaPlus 2011 (CSV)</span>
-                        <span className="text-[9px] bg-secondary-container/30 text-secondary px-1 py-0.5 rounded-sm">Delimited</span>
+                        <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Excel / CSV</span>
                       </button>
                     </div>
                   )}
