@@ -2699,8 +2699,8 @@ export default function Home() {
               </div>
 
               {/* Tabla de Historial de Documentos */}
-              <section className="flex-none md:flex-1 flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden min-h-[280px] shadow-precision">
-                <div className="flex-1 overflow-auto custom-scrollbar">
+              <section className="flex-1 flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden min-h-0 shadow-precision">
+                <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
                   {isLoading ? (
                     <div className="h-full w-full flex items-center justify-center py-10 text-on-surface-variant text-xs">
                       <span className="animate-spin material-symbols-outlined mr-2 text-xs">progress_activity</span>
