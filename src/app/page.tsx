@@ -77,6 +77,7 @@ export default function Home() {
 
   // DB Data states
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
@@ -271,10 +272,19 @@ export default function Home() {
   // 1. Fetch companies on mount
   const fetchCompanies = async () => {
     const client = supabase;
-    if (!client) return;
+    setIsLoadingCompanies(true);
+    if (!client) {
+      setIsLoadingCompanies(false);
+      setIsLoading(false);
+      return;
+    }
     try {
       const { data: { session } } = await client.auth.getSession();
-      if (!session) return;
+      if (!session) {
+        setIsLoadingCompanies(false);
+        setIsLoading(false);
+        return;
+      }
 
       const res = await fetch('/api/companies', {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
@@ -292,15 +302,22 @@ export default function Home() {
           if (defaultCompanyId) {
             localStorage.setItem('active_company_id', defaultCompanyId);
             fetchData(defaultCompanyId);
+          } else {
+            setIsLoading(false);
           }
         } else {
           // No companies at all, turn off loader
           setIsLoading(false);
         }
+      } else {
+        // API error - clear loading
+        setIsLoading(false);
       }
     } catch (err) {
       console.error('Error fetching companies:', err);
       setIsLoading(false);
+    } finally {
+      setIsLoadingCompanies(false);
     }
   };
 
@@ -2449,7 +2466,7 @@ export default function Home() {
                 }}
                 className="w-full bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none transition-colors truncate"
               >
-                {companies.length === 0 ? (
+                {isLoadingCompanies ? (
                   <option value="">Cargando empresas...</option>
                 ) : (
                   companies.map((c) => (
@@ -2598,7 +2615,7 @@ export default function Home() {
                   className="bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none min-w-[90px] sm:min-w-[150px] max-w-[120px] xs:max-w-[150px] sm:max-w-[220px] transition-colors truncate"
                 >
                   {companies.length === 0 ? (
-                    <option value="">Cargando empresas...</option>
+                    <option value="">{isLoadingCompanies ? 'Cargando empresas...' : 'Sin empresas'}</option>
                   ) : (
                     companies.map((c) => (
                       <option key={c.id} value={c.id}>

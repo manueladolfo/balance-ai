@@ -35,7 +35,11 @@ export async function POST(req: NextRequest) {
       envContent = `GEMINI_API_KEY=${geminiApiKey}\n`;
     }
 
-    fs.writeFileSync(envPath, envContent, 'utf8');
+    try {
+      fs.writeFileSync(envPath, envContent, 'utf8');
+    } catch (fsError: any) {
+      console.warn('Could not persist to .env.local (expected in read-only filesystems like Vercel):', fsError.message);
+    }
 
     return NextResponse.json({ success: true, message: 'Clave API de Gemini guardada y persistida con éxito.' });
   } catch (error: any) {
