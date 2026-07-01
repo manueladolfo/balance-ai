@@ -100,7 +100,7 @@ ${linesStr}`;
       }
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     
     // Configurar prompt con instrucciones contables y contexto
     const prompt = `Eres un asistente de inteligencia artificial contable integrado en la aplicación "Balance AI". Tu objetivo es responder consultas acerca del libro mayor y asientos contables del usuario de manera profesional, clara y precisa en español.
