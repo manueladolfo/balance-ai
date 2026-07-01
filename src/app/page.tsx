@@ -104,6 +104,8 @@ export default function Home() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [chatAttachedFile, setChatAttachedFile] = useState<{ name: string; base64: string; type: string } | null>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
   const chatStreamEndRef = useRef<HTMLDivElement>(null);
 
   // Upload & Training states
@@ -1223,13 +1225,44 @@ export default function Home() {
     }
   };
 
+  const handleChatFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 4 * 1024 * 1024) {
+      showToast('El archivo adjunto no debe superar los 4MB.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setChatAttachedFile({
+        name: file.name,
+        base64: base64String.split(',')[1], // solo datos base64
+        type: file.type
+      });
+      showToast(`Archivo "${file.name}" adjuntado al chat.`, 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
   // 4. Chat logic
   const handleSendMessage = async () => {
-    if (!chatInput.trim() || isChatLoading) return;
+    if ((!chatInput.trim() && !chatAttachedFile) || isChatLoading) return;
 
     const userMessage = chatInput;
-    setChatMessages(prev => [...prev, { sender: 'user', text: userMessage }]);
+    const attachedFile = chatAttachedFile;
+
+    // Agregar mensaje en pantalla
+    let displayMsg = userMessage;
+    if (attachedFile) {
+      displayMsg += `\n\n📎 Archivo adjunto: ${attachedFile.name}`;
+    }
+
+    setChatMessages(prev => [...prev, { sender: 'user', text: displayMsg }]);
     setChatInput('');
+    setChatAttachedFile(null);
     setIsChatLoading(true);
 
     const client = supabase;
@@ -1253,7 +1286,12 @@ export default function Home() {
         },
         body: JSON.stringify({
           message: userMessage,
-          selectedDocumentIds: selectedDocIds
+          selectedDocumentIds: selectedDocIds,
+          file: attachedFile ? {
+            name: attachedFile.name,
+            base64: attachedFile.base64,
+            type: attachedFile.type
+          } : null
         })
       });
 
@@ -2889,11 +2927,30 @@ export default function Home() {
 
                 {/* Input area - Horizontal y de ancho completo abajo */}
                 <div className="p-3 md:p-4 px-4 md:px-6 bg-surface border-t border-outline-variant/10 shrink-0">
+                  {chatAttachedFile && (
+                    <div className="flex items-center gap-1.5 bg-secondary/10 border border-secondary/20 px-2.5 py-1 rounded-sm text-[10px] text-secondary font-semibold w-max mb-2 animate-fade-in">
+                      <span className="material-symbols-outlined text-xs">attach_file</span>
+                      <span className="truncate max-w-[200px]">{chatAttachedFile.name}</span>
+                      <button 
+                        onClick={() => setChatAttachedFile(null)}
+                        className="material-symbols-outlined text-[10px] text-secondary hover:text-error ml-1 focus:outline-none"
+                      >
+                        close
+                      </button>
+                    </div>
+                  )}
                   <div className="border border-outline-variant/10 rounded-sm overflow-hidden flex items-center bg-surface-container-lowest px-3 md:px-4 py-2 md:py-3 focus-within:border-primary/50 transition-colors">
+                    <input 
+                      type="file" 
+                      ref={chatFileInputRef} 
+                      onChange={handleChatFileChange} 
+                      className="hidden" 
+                      accept="image/*,application/pdf,text/*" 
+                    />
                     <button 
-                      onClick={() => showToast('Adjuntar archivos próximamente.', 'info')}
+                      onClick={() => chatFileInputRef.current?.click()}
                       className="flex items-center text-on-surface-variant hover:text-primary mr-2 md:mr-3 focus:outline-none"
-                      title="Adjuntar archivo"
+                      title="Adjuntar archivo (Imagen o PDF)"
                     >
                       <span className="material-symbols-outlined text-base">attach_file</span>
                     </button>
@@ -2905,13 +2962,13 @@ export default function Home() {
                       className="flex-1 bg-transparent py-2 md:py-3 text-[15px] md:text-sm focus:outline-none disabled:opacity-60 text-on-surface placeholder:text-on-surface-variant/60" 
                       placeholder={selectedDocIds.length > 0 
                         ? "Preguntar sobre filas seleccionadas..." 
-                        : "Escribe tu consulta..."
+                        : "Escribe tu consulta o adjunta un archivo..."
                       } 
                       type="text"
                     />
                     <button 
                       onClick={handleSendMessage}
-                      disabled={isChatLoading || !chatInput.trim()}
+                      disabled={isChatLoading || (!chatInput.trim() && !chatAttachedFile)}
                       className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-secondary text-white rounded-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none ml-2 md:ml-3 focus:outline-none"
                     >
                       <span className="material-symbols-outlined text-sm text-white">send</span>

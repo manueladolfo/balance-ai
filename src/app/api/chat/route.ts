@@ -15,10 +15,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
     }
 
-    const { message, selectedDocumentIds } = await req.json();
+    const { message, selectedDocumentIds, file } = await req.json();
 
-    if (!message) {
-      return NextResponse.json({ error: 'Falta el mensaje de consulta.' }, { status: 400 });
+    if (!message && !file) {
+      return NextResponse.json({ error: 'Falta el mensaje o el archivo de consulta.' }, { status: 400 });
     }
 
     if (!supabaseAdmin) {
@@ -101,17 +101,32 @@ ${linesStr}`;
     }
 
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    // Configurar prompt con instrucciones contables y contexto
     const prompt = `Eres un asistente de inteligencia artificial contable integrado en la aplicación "Balance AI". Tu objetivo es responder consultas acerca del libro mayor y asientos contables del usuario de manera profesional, clara y precisa en español.
+${file ? 'Se adjunta un archivo en esta consulta para que lo analices e interpretes en base a la pregunta del usuario.' : ''}
 
 ${contextData ? `El usuario ha seleccionado los siguientes asientos contables del historial como contexto para su pregunta:
 ${contextData}
 
-IMPORTANTE: Céntrate ÚNICAMENTE en analizar estos datos para responder la pregunta del usuario. Si el usuario te hace preguntas no relacionadas, indícale de manera educada que estás enfocado en los asientos seleccionados.` : 'El usuario no ha seleccionado ningún asiento contable específico. Pídele educadamente que seleccione algún documento del historial de arriba para poder realizar análisis detallados sobre sus líneas.'}
+IMPORTANTE: Céntrate principalmente en analizar estos datos para responder la pregunta del usuario.` : 'El usuario no ha seleccionado ningún asiento contable específico como contexto.'}
 
 Pregunta del usuario:
-"${message}"`;
+"${message || 'Analiza el documento adjunto.'}"`;
 
-    const response = await model.generateContent(prompt);
+    // Preparar los inputs para Gemini (multimodal si hay archivo)
+    const chatContents: any[] = [prompt];
+    
+    if (file && file.base64 && file.type) {
+      chatContents.push({
+        inlineData: {
+          data: file.base64,
+          mimeType: file.type
+        }
+      });
+    }
+
+    const response = await model.generateContent(chatContents);
     const reply = response.response.text();
     
     return NextResponse.json({ reply });
