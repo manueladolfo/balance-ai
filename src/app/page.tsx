@@ -2429,7 +2429,7 @@ export default function Home() {
         </header>
 
         {/* Dynamic Tab Content Area */}
-        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-lg pb-36 md:pb-lg gap-lg min-h-0">
+        <div className="flex-1 overflow-hidden flex flex-col p-lg pb-[76px] md:pb-lg gap-lg min-h-0">
           
           {/* ESTADO VACÍO CUANDO NO HAY EMPRESAS */}
           {companies.length === 0 && !isLoading && activeTab !== 'settings' && (
@@ -2453,7 +2453,7 @@ export default function Home() {
 
           {/* TAB 1: PANEL DE CONTROL (HISTORIAL Y CHAT HORIZONTAL ABAJO) */}
           {companies.length > 0 && activeTab === 'dashboard' && (
-            <div className="flex-1 flex flex-col gap-4 md:gap-8 overflow-visible md:overflow-hidden min-h-0 pt-4">
+            <div className="flex-1 flex flex-col gap-4 md:gap-8 overflow-y-auto md:overflow-hidden pb-16 md:pb-0 min-h-0 pt-4">
               
               {/* Fila de Tarjetas KPI - Más altas, espaciadas y con sombras sutiles */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 shrink-0">
