@@ -137,7 +137,7 @@ ${linesStr}`;
 
       zaiMessages.push({ role: 'user', content: contentPart });
 
-      const modelName = file ? 'glm-4v' : 'glm-5.2';
+      const modelName = file ? 'glm-4v-flash' : 'glm-5.2';
 
       const zaiRes = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
         method: 'POST',

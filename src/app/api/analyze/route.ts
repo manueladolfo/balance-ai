@@ -221,7 +221,7 @@ El esquema JSON debe ser exactamente:
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'glm-4v',
+          model: 'glm-4v-flash',
           messages: [
             {
               role: 'user',
