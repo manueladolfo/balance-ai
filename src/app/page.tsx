@@ -166,15 +166,41 @@ export default function Home() {
   // Storage settings state
   const [storageMethod, setStorageMethod] = useState<'supabase' | 'local' | 'drive'>('supabase');
   const [availableLocalDocIds, setAvailableLocalDocIds] = useState<string[]>([]);
+  const [googleDriveToken, setGoogleDriveToken] = useState<string | null>(null);
+  const [googleUserEmail, setGoogleUserEmail] = useState<string | null>(null);
 
-  // Load storage settings on mount
+  // Load storage settings and Google Drive session on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedMethod = localStorage.getItem('balance_ai_storage_method') as any;
       if (savedMethod && ['supabase', 'local', 'drive'].includes(savedMethod)) {
         setStorageMethod(savedMethod);
       }
+      
+      const savedToken = localStorage.getItem('balance_ai_google_token');
+      const savedEmail = localStorage.getItem('balance_ai_google_email');
+      if (savedToken) setGoogleDriveToken(savedToken);
+      if (savedEmail) setGoogleUserEmail(savedEmail);
     }
+  }, []);
+
+  // Escuchar respuesta de la ventana de login de Google
+  useEffect(() => {
+    const handleGoogleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+        const { accessToken, userEmail } = event.data.payload;
+        setGoogleDriveToken(accessToken);
+        setGoogleUserEmail(userEmail);
+        localStorage.setItem('balance_ai_google_token', accessToken);
+        localStorage.setItem('balance_ai_google_email', userEmail);
+        showToast(`Google Drive conectado correctamente: ${userEmail}`, 'success');
+      }
+    };
+
+    window.addEventListener('message', handleGoogleMessage);
+    return () => window.removeEventListener('message', handleGoogleMessage);
   }, []);
 
   // Función para escanear IndexedDB y ver qué archivos locales están disponibles en este dispositivo
@@ -898,6 +924,30 @@ export default function Home() {
         });
       }
 
+      // Si es Google Drive, subir de forma real el archivo usando nuestro token
+      let realDriveFileId = '';
+      if (storageMethod === 'drive') {
+        if (!googleDriveToken) {
+          throw new Error('Google Drive no está conectado. Ve a Ajustes y conecta tu cuenta primero.');
+        }
+
+        const driveFormData = new FormData();
+        driveFormData.append('file', file);
+        driveFormData.append('userName', googleUserEmail || 'default-user');
+
+        const driveUploadRes = await fetch('/api/upload/drive', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${googleDriveToken}` },
+          body: driveFormData
+        });
+
+        const driveUploadData = await driveUploadRes.json();
+        if (!driveUploadRes.ok) {
+          throw new Error(driveUploadData.error || 'Error al subir el archivo físico a Google Drive.');
+        }
+        realDriveFileId = driveUploadData.driveFileId;
+      }
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', type);
@@ -906,10 +956,8 @@ export default function Home() {
         formData.append('companyId', selectedCompanyId);
       }
 
-      // Si es Google Drive, simular la obtención del driveFileId
       if (storageMethod === 'drive') {
-        const mockDriveFileId = 'gdrive_' + Math.random().toString(36).substring(2, 15);
-        formData.append('driveFileId', mockDriveFileId);
+        formData.append('driveFileId', realDriveFileId);
       }
 
       // Step A: Upload file registration
@@ -1076,6 +1124,30 @@ export default function Home() {
             });
           }
 
+          // Si es Google Drive, subir de forma real el archivo usando nuestro token
+          let realDriveFileId = '';
+          if (storageMethod === 'drive') {
+            if (!googleDriveToken) {
+              throw new Error('Google Drive no está conectado. Ve a Ajustes y conecta tu cuenta primero.');
+            }
+
+            const driveFormData = new FormData();
+            driveFormData.append('file', currentItem.file);
+            driveFormData.append('userName', googleUserEmail || 'default-user');
+
+            const driveUploadRes = await fetch('/api/upload/drive', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${googleDriveToken}` },
+              body: driveFormData
+            });
+
+            const driveUploadData = await driveUploadRes.json();
+            if (!driveUploadRes.ok) {
+              throw new Error(driveUploadData.error || 'Error al subir el archivo físico a Google Drive.');
+            }
+            realDriveFileId = driveUploadData.driveFileId;
+          }
+
           const formData = new FormData();
           formData.append('file', currentItem.file);
           formData.append('type', currentItem.type);
@@ -1083,8 +1155,7 @@ export default function Home() {
           formData.append('companyId', selectedCompanyId);
 
           if (storageMethod === 'drive') {
-            const mockDriveFileId = 'gdrive_' + Math.random().toString(36).substring(2, 15);
-            formData.append('driveFileId', mockDriveFileId);
+            formData.append('driveFileId', realDriveFileId);
           }
 
           // Upload step
@@ -3749,20 +3820,48 @@ export default function Home() {
                       <p className="text-[11px] text-on-surface-variant leading-relaxed">
                         Debes vincular tu cuenta de Google para permitir que Balance AI cree la carpeta de respaldo y guarde allí los documentos contables que cargues en la aplicación.
                       </p>
-                      <div>
-                        <button 
-                          onClick={() => {
-                            // Simulación del popup de autorización Google OAuth
-                            showToast('Conectando con Google Drive (OAuth)...', 'info');
-                            setTimeout(() => {
-                              showToast('Cuenta de Google vinculada con éxito. Carpeta "balance-ai" creada en tu Drive.', 'success');
-                            }, 1500);
-                          }}
-                          className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none"
-                        >
-                          <span className="material-symbols-outlined text-xs">cloud_sync</span>
-                          <span>Conectar Cuenta de Google</span>
-                        </button>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {googleUserEmail ? (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2 bg-secondary/5 px-3 py-2 border border-secondary/10 rounded-sm">
+                              <span className="material-symbols-outlined text-secondary text-sm">cloud_done</span>
+                              <span className="text-[11px] font-semibold text-primary">Conectado como: <strong className="text-secondary">{googleUserEmail}</strong></span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setGoogleDriveToken(null);
+                                setGoogleUserEmail(null);
+                                localStorage.removeItem('balance_ai_google_token');
+                                localStorage.removeItem('balance_ai_google_email');
+                                showToast('Cuenta de Google Drive desvinculada con éxito.', 'success');
+                              }}
+                              className="px-3 py-1.5 border border-outline-variant/20 hover:border-error/30 text-on-surface-variant hover:text-error text-[10px] font-bold rounded-sm active:scale-[0.98] transition-all flex items-center gap-1 focus:outline-none w-max"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">logout</span>
+                              <span>Desconectar Cuenta</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              showToast('Abriendo ventana de inicio de sesión de Google...', 'info');
+                              const width = 500;
+                              const height = 600;
+                              const left = window.screenX + (window.outerWidth - width) / 2;
+                              const top = window.screenY + (window.outerHeight - height) / 2;
+                              
+                              window.open(
+                                '/api/auth/google',
+                                'GoogleAuthPopup',
+                                `width=${width},height=${height},left=${left},top=${top}`
+                              );
+                            }}
+                            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none"
+                          >
+                            <span className="material-symbols-outlined text-xs">cloud_sync</span>
+                            <span>Conectar Cuenta de Google</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
