@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import jsPDF from 'jspdf';
 
 export interface EntryLine {
@@ -22,29 +22,41 @@ export interface AccountingEntry {
 
 interface EntryModalProps {
   entry: AccountingEntry | null;
+  document?: any;
   onClose: () => void;
   onAddSubaccount?: (code: string, desc: string) => void;
   onApprove?: (documentId: string) => void;
+  onSaveManualEdit?: (documentId: string, updatedData: { type: string; reference: string; entryDate: string; lines: EntryLine[] }) => Promise<void>;
   existingSubaccounts: string[]; // List of existing subaccount codes to check for warnings
 }
 
 export const EntryModal: React.FC<EntryModalProps> = ({
   entry,
+  document,
   onClose,
   onAddSubaccount,
   onApprove,
+  onSaveManualEdit,
   existingSubaccounts
 }) => {
   if (!entry) return null;
 
-  const debeLines = entry.lines.filter(l => l.line_type === 'debe');
-  const haberLines = entry.lines.filter(l => l.line_type === 'haber');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedDate, setEditedDate] = useState(entry.entry_date);
+  const [editedReference, setEditedReference] = useState(entry.reference);
+  const [editedType, setEditedType] = useState(document?.type || 'Factura');
+  const [editedLines, setEditedLines] = useState<EntryLine[]>(entry.lines);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const currentLines = isEditing ? editedLines : entry.lines;
+  const debeLines = currentLines.filter(l => l.line_type === 'debe');
+  const haberLines = currentLines.filter(l => l.line_type === 'haber');
 
   const totalDebe = debeLines.reduce((sum, l) => sum + l.amount, 0);
   const totalHaber = haberLines.reduce((sum, l) => sum + l.amount, 0);
 
   // Equalize rows for visual alignment — pad shorter side with empty rows
-  const maxRows = Math.max(debeLines.length, haberLines.length, 3);
+  const maxRows = isEditing ? Math.max(debeLines.length, haberLines.length) : Math.max(debeLines.length, haberLines.length, 3);
 
   // Check for any subaccount in the entry that doesn't exist in PGC
   const missingAccounts = entry.lines.filter(l => !existingSubaccounts.includes(l.subaccount_code));
@@ -105,7 +117,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     // DEBE rows
     y += 7;
     doc.setFont('Helvetica', 'normal');
-    debeLines.forEach(l => {
+    const pdfDebeLines = entry.lines.filter(l => l.line_type === 'debe');
+    pdfDebeLines.forEach(l => {
       doc.text(l.subaccount_code, 20, y);
       doc.text(l.subaccount_desc, 55, y);
       doc.text(l.amount.toFixed(2), 190, y, { align: 'right' });
@@ -115,8 +128,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     // Total Debe
     doc.setFont('Helvetica', 'bold');
     doc.line(20, y - 2, 190, y - 2);
+    const pdfTotalDebe = pdfDebeLines.reduce((sum, l) => sum + l.amount, 0);
     doc.text('TOTAL DEBE', 55, y + 3);
-    doc.text(totalDebe.toFixed(2), 190, y + 3, { align: 'right' });
+    doc.text(pdfTotalDebe.toFixed(2), 190, y + 3, { align: 'right' });
 
     // Table headers for HABER
     y += 15;
@@ -137,7 +151,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     // HABER rows
     y += 7;
     doc.setFont('Helvetica', 'normal');
-    haberLines.forEach(l => {
+    const pdfHaberLines = entry.lines.filter(l => l.line_type === 'haber');
+    pdfHaberLines.forEach(l => {
       doc.text(l.subaccount_code, 20, y);
       doc.text(l.subaccount_desc, 55, y);
       doc.text(l.amount.toFixed(2), 190, y, { align: 'right' });
@@ -147,8 +162,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     // Total Haber
     doc.setFont('Helvetica', 'bold');
     doc.line(20, y - 2, 190, y - 2);
+    const pdfTotalHaber = pdfHaberLines.reduce((sum, l) => sum + l.amount, 0);
     doc.text('TOTAL HABER', 55, y + 3);
-    doc.text(totalHaber.toFixed(2), 190, y + 3, { align: 'right' });
+    doc.text(pdfTotalHaber.toFixed(2), 190, y + 3, { align: 'right' });
 
     // Footer signature
     y += 20;
@@ -159,6 +175,74 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
     // Save the PDF
     doc.save(`Asiento_${entry.reference || entry.entry_number}.pdf`);
+  };
+
+  const handleLineChange = (index: number, lineType: 'debe' | 'haber', field: keyof EntryLine, value: any) => {
+    const linesOfType = editedLines.filter(l => l.line_type === lineType);
+    const targetLine = linesOfType[index];
+    if (!targetLine) return;
+
+    const newLines = editedLines.map(l => {
+      if (l === targetLine) {
+        if (field === 'amount') {
+          const val = parseFloat(value);
+          return { ...l, [field]: isNaN(val) ? 0 : val };
+        }
+        return { ...l, [field]: value };
+      }
+      return l;
+    });
+    setEditedLines(newLines);
+  };
+
+  const handleAddLine = (lineType: 'debe' | 'haber') => {
+    const newLine: EntryLine = {
+      line_type: lineType,
+      subaccount_code: '',
+      subaccount_desc: '',
+      amount: 0
+    };
+    setEditedLines([...editedLines, newLine]);
+  };
+
+  const handleDeleteLine = (index: number, lineType: 'debe' | 'haber') => {
+    const linesOfType = editedLines.filter(l => l.line_type === lineType);
+    const targetLine = linesOfType[index];
+    if (!targetLine) return;
+
+    setEditedLines(editedLines.filter(l => l !== targetLine));
+  };
+
+  const handleSave = async () => {
+    if (Math.abs(totalDebe - totalHaber) >= 0.01) {
+      alert(`El asiento no está cuadrado. La diferencia es de €${Math.abs(totalDebe - totalHaber).toFixed(2)}. Debe cuadrarlo antes de guardar.`);
+      return;
+    }
+
+    if (onSaveManualEdit) {
+      setIsSaving(true);
+      try {
+        await onSaveManualEdit(entry.document_id, {
+          type: editedType,
+          reference: editedReference,
+          entryDate: editedDate,
+          lines: editedLines.filter(l => l.subaccount_code.trim() !== '')
+        });
+        setIsEditing(false);
+      } catch (err: any) {
+        alert(err.message || 'Error al guardar los cambios.');
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedDate(entry.entry_date);
+    setEditedReference(entry.reference);
+    setEditedType(document?.type || 'Factura');
+    setEditedLines(entry.lines);
+    setIsEditing(false);
   };
 
   const renderDebeRow = (line: EntryLine | null, index: number) => {
@@ -182,6 +266,50 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         <td className="border-b border-r border-outline-variant/8 px-4 py-3 text-[11px] text-on-surface leading-snug align-top">{line.subaccount_desc}</td>
         <td className="border-b border-outline-variant/8 px-4 py-3 text-right font-mono text-[11px] text-primary font-bold tabular-nums align-top">
           {line.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </td>
+      </tr>
+    );
+  };
+
+  const renderEditableDebeRow = (line: EntryLine, index: number) => {
+    return (
+      <tr key={`debe-edit-${index}`} className="h-[52px]">
+        <td className="border-b border-r border-outline-variant/8 px-2 py-1.5 align-middle">
+          <input
+            type="text"
+            value={line.subaccount_code}
+            onChange={(e) => handleLineChange(index, 'debe', 'subaccount_code', e.target.value)}
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Subcuenta"
+          />
+        </td>
+        <td className="border-b border-r border-outline-variant/8 px-2 py-1.5 align-middle">
+          <input
+            type="text"
+            value={line.subaccount_desc}
+            onChange={(e) => handleLineChange(index, 'debe', 'subaccount_desc', e.target.value)}
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Descripción"
+          />
+        </td>
+        <td className="border-b border-outline-variant/8 px-2 py-1.5 align-middle">
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              step="0.01"
+              value={line.amount || ''}
+              onChange={(e) => handleLineChange(index, 'debe', 'amount', e.target.value)}
+              className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="0.00"
+            />
+            <button
+              onClick={() => handleDeleteLine(index, 'debe')}
+              className="p-1 text-error hover:bg-error/5 rounded-sm transition-all focus:outline-none"
+              title="Eliminar línea"
+            >
+              <span className="material-symbols-outlined text-xs">delete</span>
+            </button>
+          </div>
         </td>
       </tr>
     );
@@ -213,22 +341,112 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     );
   };
 
+  const renderEditableHaberRow = (line: EntryLine, index: number) => {
+    return (
+      <tr key={`haber-edit-${index}`} className="h-[52px]">
+        <td className="border-b border-r border-outline-variant/8 px-2 py-1.5 align-middle">
+          <input
+            type="text"
+            value={line.subaccount_code}
+            onChange={(e) => handleLineChange(index, 'haber', 'subaccount_code', e.target.value)}
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-secondary"
+            placeholder="Subcuenta"
+          />
+        </td>
+        <td className="border-b border-r border-outline-variant/8 px-2 py-1.5 align-middle">
+          <input
+            type="text"
+            value={line.subaccount_desc}
+            onChange={(e) => handleLineChange(index, 'haber', 'subaccount_desc', e.target.value)}
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-secondary"
+            placeholder="Descripción"
+          />
+        </td>
+        <td className="border-b border-outline-variant/8 px-2 py-1.5 align-middle">
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              step="0.01"
+              value={line.amount || ''}
+              onChange={(e) => handleLineChange(index, 'haber', 'amount', e.target.value)}
+              className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-secondary"
+              placeholder="0.00"
+            />
+            <button
+              onClick={() => handleDeleteLine(index, 'haber')}
+              className="p-1 text-error hover:bg-error/5 rounded-sm transition-all focus:outline-none"
+              title="Eliminar línea"
+            >
+              <span className="material-symbols-outlined text-xs">delete</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm bg-background/60" id="entry-modal">
       <div className="bg-surface w-full max-w-5xl h-auto max-h-[92vh] rounded-md border border-outline-variant/10 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 shadow-2xl mx-auto my-auto">
         
         {/* Modal Header */}
         <div className="bg-surface-container-low px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0 select-none border-b border-outline-variant/10">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col text-left">
-              <span className="text-on-surface-variant text-[9px] font-bold uppercase tracking-widest">Detalles del Asiento</span>
-              <h3 className="text-primary font-bold text-sm tracking-tight">Ref. Documento: {entry.reference || 'N/A'}</h3>
-            </div>
-            <div className="h-8 w-px bg-outline-variant/15 mx-1 hidden sm:block"></div>
-            <div className="flex flex-col text-left hidden sm:flex">
-              <span className="text-on-surface-variant text-[9px] font-bold uppercase tracking-widest">Fecha de Contabilización</span>
-              <p className="text-primary font-mono text-xs">{entry.entry_date}</p>
-            </div>
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            {isEditing ? (
+              <div className="flex flex-wrap items-center gap-4 text-left w-full">
+                <div className="flex flex-col">
+                  <label className="text-on-surface-variant text-[8px] font-bold uppercase tracking-widest mb-1">Referencia</label>
+                  <input
+                    type="text"
+                    value={editedReference}
+                    onChange={(e) => setEditedReference(e.target.value)}
+                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary w-32"
+                  />
+                </div>
+                
+                <div className="flex flex-col">
+                  <label className="text-on-surface-variant text-[8px] font-bold uppercase tracking-widest mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    value={editedDate}
+                    onChange={(e) => setEditedDate(e.target.value)}
+                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-primary focus:outline-none focus:ring-1 focus:ring-primary w-36"
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-on-surface-variant text-[8px] font-bold uppercase tracking-widest mb-1">Tipo de Documento</label>
+                  <select
+                    value={editedType}
+                    onChange={(e) => setEditedType(e.target.value)}
+                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="Factura">Factura</option>
+                    <option value="Recibo">Recibo</option>
+                    <option value="Ticket">Ticket</option>
+                    <option value="Extracto">Extracto</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col text-left">
+                  <span className="text-on-surface-variant text-[9px] font-bold uppercase tracking-widest">Detalles del Asiento</span>
+                  <h3 className="text-primary font-bold text-sm tracking-tight flex items-center gap-2">
+                    <span>Ref. Documento: {entry.reference || 'N/A'}</span>
+                    <span className="px-1.5 py-0.5 text-[8px] font-bold tracking-wider uppercase bg-primary/10 text-primary rounded-sm border border-primary/20">
+                      {document?.type || 'Documento'}
+                    </span>
+                  </h3>
+                </div>
+                <div className="h-8 w-px bg-outline-variant/15 mx-1 hidden sm:block"></div>
+                <div className="flex flex-col text-left hidden sm:flex">
+                  <span className="text-on-surface-variant text-[9px] font-bold uppercase tracking-widest">Fecha de Contabilización</span>
+                  <p className="text-primary font-mono text-xs">{entry.entry_date}</p>
+                </div>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
             <button 
@@ -245,7 +463,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         </div>
 
         {/* Warning Box for missing subaccounts */}
-        {missingAccounts.length > 0 && (
+        {missingAccounts.length > 0 && !isEditing && (
           <div className="bg-[#ffdad6]/40 border-b border-error/10 px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
             <span className="material-symbols-outlined text-error material-symbols-fill shrink-0 text-lg">warning</span>
             <div className="text-[#93000a] text-xs font-semibold flex-1 text-left leading-relaxed">
@@ -295,11 +513,26 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: maxRows }).map((_, i) => 
-                        renderDebeRow(debeLines[i] || null, i)
+                      {isEditing ? (
+                        debeLines.map((line, i) => renderEditableDebeRow(line, i))
+                      ) : (
+                        Array.from({ length: maxRows }).map((_, i) => 
+                          renderDebeRow(debeLines[i] || null, i)
+                        )
                       )}
                     </tbody>
                   </table>
+                  {isEditing && (
+                    <div className="p-2 bg-surface-container-low border-t border-outline-variant/10 text-center">
+                      <button
+                        onClick={() => handleAddLine('debe')}
+                        className="px-3 py-1 bg-primary/5 hover:bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-1 mx-auto cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-xs">add</span>
+                        <span>Añadir Apunte</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -333,11 +566,26 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: maxRows }).map((_, i) => 
-                        renderHaberRow(haberLines[i] || null, i)
+                      {isEditing ? (
+                        haberLines.map((line, i) => renderEditableHaberRow(line, i))
+                      ) : (
+                        Array.from({ length: maxRows }).map((_, i) => 
+                          renderHaberRow(haberLines[i] || null, i)
+                        )
                       )}
                     </tbody>
                   </table>
+                  {isEditing && (
+                    <div className="p-2 bg-surface-container-low border-t border-outline-variant/10 text-center">
+                      <button
+                        onClick={() => handleAddLine('haber')}
+                        className="px-3 py-1 bg-secondary/5 hover:bg-secondary/10 text-secondary text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-1 mx-auto cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-xs">add</span>
+                        <span>Añadir Apunte</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -374,33 +622,51 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           </div>
           
           <div className="flex gap-2 w-full sm:w-auto">
-            <button 
-              onClick={() => {
-                alert('La edición manual de asientos se implementará en la próxima fase.');
-              }}
-              className="flex-1 sm:flex-none px-4 py-2 border border-outline-variant/20 text-on-surface font-semibold text-xs rounded-sm hover:bg-surface-container-low transition-colors"
-            >
-              Editar Manualmente
-            </button>
-            <button 
-              onClick={async () => {
-                if (onApprove && entry) {
-                  await onApprove(entry.document_id);
-                } else {
-                  alert('¡Asiento contable aprobado y listo para exportación masiva a Contaplus!');
-                }
-                onClose();
-              }}
-              className="flex-1 sm:flex-none px-4 py-2 bg-primary text-white font-semibold text-xs rounded-sm hover:opacity-90 active:scale-95 transition-all"
-            >
-              Aprobar & Contabilizar
-            </button>
-            <button 
-              onClick={onClose}
-              className="flex-1 sm:flex-none px-4 py-2 border border-outline-variant/20 text-on-surface/60 font-semibold text-xs rounded-sm hover:bg-surface-container-low transition-colors"
-            >
-              Cerrar
-            </button>
+            {isEditing ? (
+              <>
+                <button 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-primary text-white font-semibold text-xs rounded-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 cursor-pointer"
+                >
+                  {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+                <button 
+                  onClick={handleCancel}
+                  className="flex-1 sm:flex-none px-4 py-2 border border-outline-variant/20 text-on-surface font-semibold text-xs rounded-sm hover:bg-surface-container-low transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="flex-1 sm:flex-none px-4 py-2 border border-outline-variant/20 text-on-surface font-semibold text-xs rounded-sm hover:bg-surface-container-low transition-colors cursor-pointer"
+                >
+                  Editar Manualmente
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (onApprove && entry) {
+                      await onApprove(entry.document_id);
+                    } else {
+                      alert('¡Asiento contable aprobado y listo para exportación masiva a Contaplus!');
+                    }
+                    onClose();
+                  }}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-primary text-white font-semibold text-xs rounded-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                >
+                  Aprobar & Contabilizar
+                </button>
+                <button 
+                  onClick={onClose}
+                  className="flex-1 sm:flex-none px-4 py-2 border border-outline-variant/20 text-on-surface/60 font-semibold text-xs rounded-sm hover:bg-surface-container-low transition-colors cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -408,4 +674,5 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     </div>
   );
 };
+
 export default EntryModal;

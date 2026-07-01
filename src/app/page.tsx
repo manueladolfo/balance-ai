@@ -1919,6 +1919,53 @@ export default function Home() {
     }
   };
 
+  const handleSaveManualEdit = async (
+    documentId: string,
+    updatedData: { type: string; reference: string; entryDate: string; lines: any[] }
+  ) => {
+    const client = supabase;
+    if (!client) {
+      showToast('Supabase no está configurado.', 'error');
+      return;
+    }
+
+    try {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        throw new Error('No se encontró sesión activa.');
+      }
+
+      showToast('Guardando cambios del asiento contable...', 'info');
+      const res = await fetch('/api/documents/edit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          documentId,
+          type: updatedData.type,
+          reference: updatedData.reference,
+          entryDate: updatedData.entryDate,
+          lines: updatedData.lines
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al guardar los cambios.');
+      }
+
+      showToast('¡Asiento contable y tipo de documento actualizados!', 'success');
+      await fetchData(selectedCompanyId);
+      setActiveEntryForModal(null);
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Error al guardar la edición manual.', 'error');
+      throw err;
+    }
+  };
+
   const handleSaveGeminiKey = async () => {
     if (!geminiInputKey.trim()) return;
     setIsSavingKey(true);
@@ -4338,9 +4385,11 @@ export default function Home() {
       {activeEntryForModal && (
         <EntryModal 
           entry={activeEntryForModal}
+          document={documents.find(d => d.id === activeEntryForModal.document_id) || null}
           onClose={() => setActiveEntryForModal(null)}
           onAddSubaccount={handleAddSubaccount}
           onApprove={handleApproveDocument}
+          onSaveManualEdit={handleSaveManualEdit}
           existingSubaccounts={pgcAccounts.map(a => a.code)}
         />
       )}

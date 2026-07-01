@@ -87,7 +87,6 @@ export async function POST(req: NextRequest) {
 
     // 2. Perform AI analysis with Gemini
     let resultJson: any = null;
-
     // Retrieve PGC accounts associated with the document's company to teach the AI
     let pgcContext = '';
     if (doc.company_id) {
@@ -97,6 +96,54 @@ export async function POST(req: NextRequest) {
         .eq('company_id', doc.company_id);
       if (accounts && accounts.length > 0) {
         pgcContext = accounts.map(a => `${a.code}: ${a.description}`).join('\n');
+      }
+    }
+
+    // Retrieve previous manually completed/approved entries of the same company for Few-Shot In-Context Learning
+    let learningContext = '';
+    if (doc.company_id) {
+      try {
+        const { data: compDocs } = await supabaseAdmin
+          .from('documents')
+          .select('id, type')
+          .eq('company_id', doc.company_id)
+          .eq('status', 'completed')
+          .limit(10);
+        
+        if (compDocs && compDocs.length > 0) {
+          const docIds = compDocs.map(d => d.id);
+          const { data: pastEntries } = await supabaseAdmin
+            .from('accounting_entries')
+            .select(`
+              document_id,
+              concept,
+              entry_lines (
+                line_type,
+                subaccount_code,
+                subaccount_desc,
+                amount
+              )
+            `)
+            .in('document_id', docIds)
+            .limit(5);
+
+          if (pastEntries && pastEntries.length > 0) {
+            learningContext = pastEntries.map((e: any, idx: number) => {
+              const matchedDoc = compDocs.find(d => d.id === e.document_id);
+              const typeStr = matchedDoc ? matchedDoc.type : 'Otro';
+              const lines = e.entry_lines || [];
+              const linesStr = lines.map((l: any) => 
+                `- [${l.line_type.toUpperCase()}] Subcuenta: ${l.subaccount_code} (${l.subaccount_desc}) - Importe: €${l.amount.toFixed(2)}`
+              ).join('\n');
+              return `Ejemplo Asiento #${idx + 1} (Tipo de Documento: ${typeStr}):
+Concepto: ${e.concept}
+Líneas de diario:
+${linesStr}`;
+            }).join('\n\n');
+          }
+        }
+      } catch (learningErr) {
+        console.error('Error fetching learning context:', learningErr);
       }
     }
 
@@ -131,6 +178,10 @@ Usa las siguientes subcuentas del Plan General de Contabilidad (PGC) del usuario
 
 Cuentas y subcuentas del usuario:
 ${pgcContext || 'No hay cuentas definidas, utiliza el estándar del PGC español.'}
+
+${learningContext ? `HISTORIAL DE APRENDIZAJE (Usa estos ejemplos reales previos de la misma empresa para aprender cómo prefiere clasificar y contabilizar el usuario):
+${learningContext}
+` : ''}
 
 INSTRUCCIONES IMPORTANTES:
 1. El asiento debe estar perfectamente cuadrado (Suma del Debe = Suma del Haber).
