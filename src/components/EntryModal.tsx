@@ -271,37 +271,40 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         )}
 
         {/* Content: Two-Column DEBE / HABER Layout */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-2 min-h-0">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
             
             {/* DEBE Column */}
-            <div className="flex flex-col border-b lg:border-b-0 lg:border-r border-outline-variant/10">
-              {/* Column Header Bar */}
-              <div className="bg-primary px-5 py-2.5 flex justify-between items-center select-none shrink-0">
-                <span className="font-bold text-white tracking-wider text-[10px] uppercase">DEBE (Cargo)</span>
-                <span className="text-[9px] text-white/70 font-bold uppercase tracking-wider">Activos / Gastos</span>
-              </div>
-              
-              {/* Table */}
-              <div className="bg-surface">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="text-[9px] text-primary font-bold uppercase tracking-wider select-none bg-primary/[0.04] border-b border-outline-variant/10">
-                      <th className="px-4 py-2.5 w-[90px] text-center border-r border-outline-variant/8">Subcuenta</th>
-                      <th className="px-4 py-2.5 border-r border-outline-variant/8">Descripción</th>
-                      <th className="px-4 py-2.5 text-right w-[100px]">Importe</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: maxRows }).map((_, i) => 
-                      renderDebeRow(debeLines[i] || null, i)
-                    )}
-                  </tbody>
-                </table>
+            <div className="flex flex-col">
+              {/* Border Group for DEBE */}
+              <div className="border-2 border-primary rounded-sm overflow-hidden flex flex-col">
+                {/* Column Header Bar */}
+                <div className="bg-primary px-5 py-2.5 flex justify-between items-center select-none shrink-0">
+                  <span className="font-bold text-white tracking-wider text-[10px] uppercase">DEBE (Cargo)</span>
+                  <span className="text-[9px] text-white/70 font-bold uppercase tracking-wider">Activos / Gastos</span>
+                </div>
+                
+                {/* Table */}
+                <div className="bg-surface">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="text-[9px] text-primary font-bold uppercase tracking-wider select-none bg-primary/[0.04] border-b border-outline-variant/10">
+                        <th className="px-4 py-2.5 w-[90px] text-center border-r border-outline-variant/8">Subcuenta</th>
+                        <th className="px-4 py-2.5 border-r border-outline-variant/8">Descripción</th>
+                        <th className="px-4 py-2.5 text-right w-[100px]">Importe</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: maxRows }).map((_, i) => 
+                        renderDebeRow(debeLines[i] || null, i)
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Total Row */}
-              <div className="bg-primary/[0.04] border-t-2 border-primary/20 px-5 py-3 flex justify-between items-center select-none shrink-0 mt-auto">
+              <div className="bg-primary/[0.04] border-t-2 border-primary/20 px-5 py-3 flex justify-between items-center select-none shrink-0 mt-auto rounded-sm">
                 <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Total Debe:</span>
                 <span className="text-lg font-bold font-mono text-primary tabular-nums">
                   ${totalDebe.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -311,32 +314,35 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
             {/* HABER Column */}
             <div className="flex flex-col">
-              {/* Column Header Bar */}
-              <div className="bg-secondary px-5 py-2.5 flex justify-between items-center select-none shrink-0">
-                <span className="font-bold text-white tracking-wider text-[10px] uppercase">HABER (Abono)</span>
-                <span className="text-[9px] text-white/70 font-bold uppercase tracking-wider">Pasivos / Patrimonio</span>
-              </div>
-              
-              {/* Table */}
-              <div className="bg-surface">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="text-[9px] text-secondary font-bold uppercase tracking-wider select-none bg-secondary/[0.04] border-b border-outline-variant/10">
-                      <th className="px-4 py-2.5 w-[90px] text-center border-r border-outline-variant/8">Subcuenta</th>
-                      <th className="px-4 py-2.5 border-r border-outline-variant/8">Descripción</th>
-                      <th className="px-4 py-2.5 text-right w-[100px]">Importe</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: maxRows }).map((_, i) => 
-                      renderHaberRow(haberLines[i] || null, i)
-                    )}
-                  </tbody>
-                </table>
+              {/* Border Group for HABER */}
+              <div className="border-2 border-secondary rounded-sm overflow-hidden flex flex-col">
+                {/* Column Header Bar */}
+                <div className="bg-secondary px-5 py-2.5 flex justify-between items-center select-none shrink-0">
+                  <span className="font-bold text-white tracking-wider text-[10px] uppercase">HABER (Abono)</span>
+                  <span className="text-[9px] text-white/70 font-bold uppercase tracking-wider">Pasivos / Patrimonio</span>
+                </div>
+                
+                {/* Table */}
+                <div className="bg-surface">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="text-[9px] text-secondary font-bold uppercase tracking-wider select-none bg-secondary/[0.04] border-b border-outline-variant/10">
+                        <th className="px-4 py-2.5 w-[90px] text-center border-r border-outline-variant/8">Subcuenta</th>
+                        <th className="px-4 py-2.5 border-r border-outline-variant/8">Descripción</th>
+                        <th className="px-4 py-2.5 text-right w-[100px]">Importe</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: maxRows }).map((_, i) => 
+                        renderHaberRow(haberLines[i] || null, i)
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Total Row */}
-              <div className="bg-secondary/[0.04] border-t-2 border-secondary/20 px-5 py-3 flex justify-between items-center select-none shrink-0 mt-auto">
+              <div className="bg-secondary/[0.04] border-t-2 border-secondary/20 px-5 py-3 flex justify-between items-center select-none shrink-0 mt-auto rounded-sm">
                 <span className="text-[10px] font-bold text-secondary uppercase tracking-widest">Total Haber:</span>
                 <span className={`text-lg font-bold font-mono tabular-nums ${Math.abs(totalDebe - totalHaber) < 0.01 ? 'text-secondary' : 'text-error'}`}>
                   ${totalHaber.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
