@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
     }
 
-    const { documentId, fileBase64 } = await req.json();
+    const { documentId, fileBase64, provider } = await req.json();
 
     if (!documentId) {
       return NextResponse.json({ error: 'Falta el ID del documento.' }, { status: 400 });
@@ -29,8 +29,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
 
-    if (!genAI) {
-      return NextResponse.json({ error: 'La API Key de Gemini no está configurada.' }, { status: 412 });
+    const isZai = provider === 'zai';
+    const zaiApiKey = process.env.Z_AI_API_KEY || '';
+
+    if (isZai) {
+      if (!zaiApiKey || zaiApiKey === 'your_z_ai_api_key') {
+        return NextResponse.json({ error: 'La API Key de Z.ai no está configurada.' }, { status: 412 });
+      }
+    } else {
+      if (!genAI) {
+        return NextResponse.json({ error: 'La API Key de Gemini no está configurada.' }, { status: 412 });
+      }
     }
 
     let docName = '';
@@ -114,48 +123,8 @@ export async function POST(req: NextRequest) {
       fileBuffer = Buffer.from(arrayBuffer);
     }
 
-    // Call Gemini API
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: SchemaType.OBJECT,
-          properties: {
-            reference: { type: SchemaType.STRING },
-            concept: { type: SchemaType.STRING },
-            entry_date: { type: SchemaType.STRING, description: 'Format YYYY-MM-DD' },
-            ia_description: { type: SchemaType.STRING, description: 'Short summary of the file content' },
-            lines: {
-              type: SchemaType.ARRAY,
-              items: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  line_type: { type: SchemaType.STRING, description: 'Tipo de apunte, debe ser "debe" o "haber"' },
-                  subaccount_code: { type: SchemaType.STRING, description: 'Accounting subaccount code (e.g. 628.0001, 472.0021, 410.0055)' },
-                  subaccount_desc: { type: SchemaType.STRING, description: 'Accounting subaccount description' },
-                  amount: { type: SchemaType.NUMBER }
-                },
-                required: ['line_type', 'subaccount_code', 'subaccount_desc', 'amount']
-              }
-            },
-            missing_subaccounts: {
-              type: SchemaType.ARRAY,
-              items: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  code: { type: SchemaType.STRING, description: 'Code of the subaccount that should be created' },
-                  description: { type: SchemaType.STRING, description: 'Description of the subaccount that should be created' }
-                },
-                required: ['code', 'description']
-              }
-            }
-          },
-          required: ['reference', 'concept', 'entry_date', 'ia_description', 'lines']
-        }
-      }
-    });
-
+    // Call AI API (Gemini or Z.ai)
+    let text = '';
     const base64File = fileBuffer.toString('base64');
     const prompt = `Eres un experto contable español. Analiza el documento adjunto (${docType}) y realiza el asiento contable completo.
 Usa las siguientes subcuentas del Plan General de Contabilidad (PGC) del usuario si son adecuadas, o propone cuentas del PGC estándar español de PYMES (como 628 para suministros, 629 para gastos de viaje/diversos, 472 para IVA soportado, 400 para proveedores, 410 para acreedores, 570/572 para caja/bancos, etc.).
@@ -167,32 +136,135 @@ INSTRUCCIONES IMPORTANTES:
 1. El asiento debe estar perfectamente cuadrado (Suma del Debe = Suma del Haber).
 2. Si una subcuenta sugerida no coincide con las del usuario y debe crearse, indícala en la sección "missing_subaccounts".
 3. Genera una breve descripción explicativa para "ia_description".
-4. Devuelve un formato JSON estructurado válido según el esquema.`;
+4. Devuelve un formato JSON estructurado válido según el esquema. Tu respuesta debe ser ÚNICAMENTE el objeto JSON sin bloques de código markdown ni texto adicional.
 
-    const parts = [
-      {
-        inlineData: {
-          data: base64File,
-          mimeType: mimeType
+El esquema JSON debe ser exactamente:
+{
+  "reference": string (referencia o número de factura),
+  "concept": string (concepto general del asiento),
+  "entry_date": string (formato YYYY-MM-DD),
+  "ia_description": string (breve resumen de 1 frase),
+  "lines": [
+    {
+      "line_type": "debe" | "haber",
+      "subaccount_code": string (código de subcuenta sin puntos),
+      "subaccount_desc": string (nombre/descripción de la subcuenta),
+      "amount": number (importe con decimales)
+    }
+  ],
+  "missing_subaccounts": [
+    {
+      "code": string (código de subcuenta a crear),
+      "description": string (nombre/descripción de la subcuenta a crear)
+    }
+  ]
+}`;
+
+    if (isZai) {
+      // Call Z.ai API (GLM-4V-Plus visual model)
+      const fileDataUrl = `data:${mimeType};base64,${base64File}`;
+      const zaiRes = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${zaiApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'glm-4v-plus',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: fileDataUrl
+                  }
+                }
+              ]
+            }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1
+        })
+      });
+
+      if (!zaiRes.ok) {
+        const errorText = await zaiRes.text();
+        throw new Error(`Error de la API de Z.ai (${zaiRes.status}): ${errorText}`);
+      }
+
+      const zaiData = await zaiRes.json();
+      text = zaiData.choices?.[0]?.message?.content || '';
+    } else {
+      // Call Gemini API
+      const model = genAI!.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: SchemaType.OBJECT,
+            properties: {
+              reference: { type: SchemaType.STRING },
+              concept: { type: SchemaType.STRING },
+              entry_date: { type: SchemaType.STRING, description: 'Format YYYY-MM-DD' },
+              ia_description: { type: SchemaType.STRING, description: 'Short summary of the file content' },
+              lines: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    line_type: { type: SchemaType.STRING, description: 'Tipo de apunte, debe ser "debe" o "haber"' },
+                    subaccount_code: { type: SchemaType.STRING, description: 'Accounting subaccount code (e.g. 628.0001, 472.0021, 410.0055)' },
+                    subaccount_desc: { type: SchemaType.STRING, description: 'Accounting subaccount description' },
+                    amount: { type: SchemaType.NUMBER }
+                  },
+                  required: ['line_type', 'subaccount_code', 'subaccount_desc', 'amount']
+                }
+              },
+              missing_subaccounts: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    code: { type: SchemaType.STRING, description: 'Code of the subaccount that should be created' },
+                    description: { type: SchemaType.STRING, description: 'Description of the subaccount that should be created' }
+                  },
+                  required: ['code', 'description']
+                }
+              }
+            },
+            required: ['reference', 'concept', 'entry_date', 'ia_description', 'lines']
+          }
         }
-      },
-      { text: prompt }
-    ];
+      });
 
-    const response = await model.generateContent(parts);
-    const text = response.response.text();
-    
-    // Limpieza robusta del JSON retornado por Gemini
+      const parts = [
+        {
+          inlineData: {
+            data: base64File,
+            mimeType: mimeType
+          }
+        },
+        { text: prompt }
+      ];
+
+      const response = await model.generateContent(parts);
+      text = response.response.text();
+    }
+
+    // Limpieza robusta del JSON retornado por la IA
     let cleanText = text.trim();
     if (cleanText.startsWith('```')) {
       cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     }
-    
+
     try {
       resultJson = JSON.parse(cleanText);
     } catch (parseErr: any) {
-      console.error('Failed to parse Gemini JSON. Raw text:', text);
-      throw new Error('El modelo no devolvió un JSON estructurado válido: ' + parseErr.message);
+      console.error('Failed to parse AI JSON. Raw text:', text);
+      throw new Error('El modelo de IA no devolvió un JSON estructurado válido: ' + parseErr.message);
     }
 
     // Validar y limpiar fecha contable

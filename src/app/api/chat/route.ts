@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
     }
 
-    const { message, selectedDocumentIds, file } = await req.json();
+    const { message, selectedDocumentIds, file, provider } = await req.json();
 
     if (!message && !file) {
       return NextResponse.json({ error: 'Falta el mensaje o el archivo de consulta.' }, { status: 400 });
@@ -25,8 +25,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Supabase no está configurado.' }, { status: 412 });
     }
 
-    if (!genAI) {
-      return NextResponse.json({ error: 'La API Key de Gemini no está configurada.' }, { status: 412 });
+    const isZai = provider === 'zai';
+    const zaiApiKey = process.env.Z_AI_API_KEY || '';
+
+    if (isZai) {
+      if (!zaiApiKey || zaiApiKey === 'your_z_ai_api_key') {
+        return NextResponse.json({ error: 'La API Key de Z.ai no está configurada.' }, { status: 412 });
+      }
+    } else {
+      if (!genAI) {
+        return NextResponse.json({ error: 'La API Key de Gemini no está configurada.' }, { status: 412 });
+      }
     }
 
     let contextData = '';
@@ -100,35 +109,76 @@ ${linesStr}`;
       }
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
-    // Configurar prompt con instrucciones contables y contexto
-    const prompt = `Eres un asistente de inteligencia artificial contable integrado en la aplicación "Balance AI". Tu objetivo es responder consultas acerca del libro mayor y asientos contables del usuario de manera profesional, clara y precisa en español.
-${file ? 'Se adjunta un archivo en esta consulta para que lo analices e interpretes en base a la pregunta del usuario.' : ''}
+    let reply = '';
+    const systemPrompt = `Eres un asistente de inteligencia artificial contable integrado en la aplicación "Balance AI". Tu objetivo es responder consultas acerca del libro mayor y asientos contables del usuario de manera profesional, clara y precisa en español.`;
 
-${contextData ? `El usuario ha seleccionado los siguientes asientos contables del historial como contexto para su pregunta:
-${contextData}
+    if (isZai) {
+      // Call Z.ai API
+      const zaiMessages: any[] = [
+        { role: 'system', content: systemPrompt }
+      ];
 
-IMPORTANTE: Céntrate principalmente en analizar estos datos para responder la pregunta del usuario.` : 'El usuario no ha seleccionado ningún asiento contable específico como contexto.'}
+      let userText = '';
+      if (contextData) {
+        userText += `El usuario ha seleccionado los siguientes asientos contables del historial como contexto para su pregunta:\n${contextData}\n\nIMPORTANTE: Céntrate principalmente en analizar estos datos para responder la pregunta del usuario.\n\n`;
+      }
+      userText += `Pregunta del usuario:\n"${message || 'Analiza el documento adjunto.'}"`;
 
-Pregunta del usuario:
-"${message || 'Analiza el documento adjunto.'}"`;
+      const contentPart: any[] = [{ type: 'text', text: userText }];
 
-    // Preparar los inputs para Gemini (multimodal si hay archivo)
-    const chatContents: any[] = [prompt];
-    
-    if (file && file.base64 && file.type) {
-      chatContents.push({
-        inlineData: {
-          data: file.base64,
-          mimeType: file.type
-        }
+      if (file && file.base64 && file.type) {
+        contentPart.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${file.type};base64,${file.base64}`
+          }
+        });
+      }
+
+      zaiMessages.push({ role: 'user', content: contentPart });
+
+      const modelName = file ? 'glm-4v-plus' : 'glm-5.2';
+
+      const zaiRes = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${zaiApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: zaiMessages,
+          temperature: 0.7
+        })
       });
+
+      if (!zaiRes.ok) {
+        const errorText = await zaiRes.text();
+        throw new Error(`Error de la API de Z.ai (${zaiRes.status}): ${errorText}`);
+      }
+
+      const zaiData = await zaiRes.json();
+      reply = zaiData.choices?.[0]?.message?.content || '';
+    } else {
+      // Call Gemini API
+      const model = genAI!.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const prompt = `${systemPrompt}\n${file ? 'Se adjunta un archivo en esta consulta para que lo analices e interpretes en base a la pregunta del usuario.' : ''}\n\n${contextData ? `El usuario ha seleccionado los siguientes asientos contables del historial como contexto para su pregunta:\n${contextData}\n\nIMPORTANTE: Céntrate principalmente en analizar estos datos para responder la pregunta del usuario.` : 'El usuario no ha seleccionado ningún asiento contable específico como contexto.'}\n\nPregunta del usuario:\n"${message || 'Analiza el documento adjunto.'}"`;
+
+      const chatContents: any[] = [prompt];
+      
+      if (file && file.base64 && file.type) {
+        chatContents.push({
+          inlineData: {
+            data: file.base64,
+            mimeType: file.type
+          }
+        });
+      }
+
+      const response = await model.generateContent(chatContents);
+      reply = response.response.text();
     }
 
-    const response = await model.generateContent(chatContents);
-    const reply = response.response.text();
-    
     return NextResponse.json({ reply });
 
   } catch (error: any) {

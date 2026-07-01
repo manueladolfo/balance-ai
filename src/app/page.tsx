@@ -85,6 +85,7 @@ export default function Home() {
   const [pgcMetadataFile, setPgcMetadataFile] = useState<{ name: string; extension: string; imported_at?: string } | null>(null);
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
+  const [hasZaiKey, setHasZaiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -128,8 +129,12 @@ export default function Home() {
 
   const [showSupabaseHelp, setShowSupabaseHelp] = useState(false);
   const [showGeminiHelp, setShowGeminiHelp] = useState(false);
+  const [showZaiHelp, setShowZaiHelp] = useState(false);
   const [geminiInputKey, setGeminiInputKey] = useState('');
+  const [zaiInputKey, setZaiInputKey] = useState('');
   const [isSavingKey, setIsSavingKey] = useState(false);
+  const [isSavingZaiKey, setIsSavingZaiKey] = useState(false);
+  const [activeAiProvider, setActiveAiProvider] = useState<'gemini' | 'zai'>('gemini');
 
   // Estados del selector de usuario y pantalla de bloqueo
   const [usersList] = useState([
@@ -184,6 +189,11 @@ export default function Home() {
       const savedEmail = localStorage.getItem('balance_ai_google_email');
       if (savedToken) setGoogleDriveToken(savedToken);
       if (savedEmail) setGoogleUserEmail(savedEmail);
+
+      const savedProvider = localStorage.getItem('balance_ai_provider') as any;
+      if (savedProvider && ['gemini', 'zai'].includes(savedProvider)) {
+        setActiveAiProvider(savedProvider);
+      }
     }
   }, []);
 
@@ -346,6 +356,7 @@ export default function Home() {
         setDocuments(docsList);
         setEntries(data.entries || []);
         setHasGeminiKey(data.hasGeminiKey);
+        setHasZaiKey(data.hasZaiKey);
         setSupabaseStatus('connected');
         // Actualizar la disponibilidad local de los archivos en IndexedDB
         updateLocalAvailability(docsList);
@@ -1059,7 +1070,8 @@ export default function Home() {
         },
         body: JSON.stringify({ 
           documentId,
-          fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined
+          fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined,
+          provider: activeAiProvider
         })
       });
       setUploadProgress(90);
@@ -1270,7 +1282,8 @@ export default function Home() {
             },
             body: JSON.stringify({ 
               documentId,
-              fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined
+              fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined,
+              provider: activeAiProvider
             })
           });
 
@@ -1608,7 +1621,8 @@ export default function Home() {
             name: attachedFile.name,
             base64: attachedFile.base64,
             type: attachedFile.type
-          } : null
+          } : null,
+          provider: activeAiProvider
         })
       });
 
@@ -1620,7 +1634,7 @@ export default function Home() {
       }
     } catch (err: any) {
       console.error(err);
-      setChatMessages(prev => [...prev, { sender: 'ai', text: `Error: ${err.message || 'No se pudo contactar con Gemini.'}` }]);
+      setChatMessages(prev => [...prev, { sender: 'ai', text: `Error: ${err.message || 'No se pudo contactar con la IA.'}` }]);
     } finally {
       setIsChatLoading(false);
     }
@@ -1927,6 +1941,31 @@ export default function Home() {
       showToast(err.message || 'Error al guardar la clave API.', 'error');
     } finally {
       setIsSavingKey(false);
+    }
+  };
+
+  const handleSaveZaiKey = async () => {
+    if (!zaiInputKey.trim()) return;
+    setIsSavingZaiKey(true);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zaiApiKey: zaiInputKey })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Clave API de Z.ai guardada y activada con éxito.', 'success');
+        setHasZaiKey(true);
+        setZaiInputKey('');
+      } else {
+        throw new Error(data.error || 'Error al guardar la clave.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Error al guardar la clave API.', 'error');
+    } finally {
+      setIsSavingZaiKey(false);
     }
   };
 
@@ -3913,6 +3952,51 @@ export default function Home() {
                   </p>
                 </div>
 
+                {/* Active AI Provider Selector Card */}
+                <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 text-left transition-all duration-200 shadow-precision">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-bold text-sm text-primary flex items-center gap-2">
+                        <span className="material-symbols-outlined text-secondary">psychology</span>
+                        <span>Proveedor de IA Activo</span>
+                      </h3>
+                      <p className="text-xs text-on-surface-variant/80 mt-1">
+                        Selecciona qué modelo de Inteligencia Artificial procesará tus facturas y responderá tus preguntas en el chat.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 bg-surface-container-low p-1 rounded-sm border border-outline-variant/5">
+                      <button
+                        onClick={() => {
+                          setActiveAiProvider('gemini');
+                          localStorage.setItem('balance_ai_provider', 'gemini');
+                          showToast('Proveedor de IA cambiado a Google Gemini.', 'info');
+                        }}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all focus:outline-none cursor-pointer ${
+                          activeAiProvider === 'gemini'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-transparent text-on-surface-variant/80 hover:text-primary'
+                        }`}
+                      >
+                        Google Gemini
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveAiProvider('zai');
+                          localStorage.setItem('balance_ai_provider', 'zai');
+                          showToast('Proveedor de IA cambiado a Z.ai (GLM 5.2).', 'info');
+                        }}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-all focus:outline-none cursor-pointer ${
+                          activeAiProvider === 'zai'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-transparent text-on-surface-variant/80 hover:text-primary'
+                        }`}
+                      >
+                        Z.ai (GLM 5.2)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Gemini Status Card */}
                 <div className="bg-surface rounded-sm border border-outline-variant/10 p-8 text-left transition-all duration-200 hover:border-outline-variant/20 shadow-precision">
                   <div className="flex items-center justify-between mb-4">
@@ -3935,7 +4019,7 @@ export default function Home() {
                   <p className="text-xs text-on-surface-variant leading-relaxed mb-6">
                     {hasGeminiKey 
                       ? 'La IA está configurada y lista para procesar de forma automatizada las imágenes y documentos contables en el Tablero.' 
-                      : 'La clave API de Gemini no se encuentra. Asegúrate de configurar la variable de entorno GEMINI_API_KEY en tu servidor.'}
+                      : 'La clave API de Gemini no se encuentra. Asegúrate de configurar la variable de entorno GEMINI_API_KEY en tu servidor o ingresarla a continuación.'}
                   </p>
 
                   {/* Formulario para ingresar/guardar API Key */}
@@ -3983,6 +4067,81 @@ export default function Home() {
                       <ol className="list-decimal pl-4 space-y-2 text-xs">
                         <li>Obtén tu API Key de forma gratuita accediendo a <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Google AI Studio</a>.</li>
                         <li>Ingresa la clave en el campo superior o configúrala en tu archivo <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">.env.local</code> bajo el nombre <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">GEMINI_API_KEY</code>.</li>
+                      </ol>
+                    </div>
+                  )}
+                </div>
+
+                {/* Z.ai Status Card */}
+                <div className="bg-surface rounded-sm border border-outline-variant/10 p-8 text-left transition-all duration-200 hover:border-outline-variant/20 shadow-precision">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-on-surface-variant text-lg">electric_bolt</span>
+                      <h3 className="font-bold text-sm text-primary">Servicio de IA (Z.ai / GLM 5.2 API)</h3>
+                    </div>
+                    <div className="flex items-center">
+                      {hasZaiKey ? (
+                        <span className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase bg-secondary/10 text-secondary rounded-sm">
+                          Activo
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase bg-error/10 text-error rounded-sm">
+                          Inactivo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-on-surface-variant leading-relaxed mb-6">
+                    {hasZaiKey 
+                      ? 'Z.ai está configurado y listo para procesar de forma automatizada tus documentos contables usando GLM-5.2 y GLM-4V-Plus.' 
+                      : 'La clave API de Z.ai no se encuentra. Configura tu API Key de Z.ai para usar este proveedor ingresándola a continuación.'}
+                  </p>
+
+                  {/* Formulario para ingresar/guardar API Key de Z.ai */}
+                  <div className="mb-6 bg-surface-container-low p-5 rounded-sm border border-outline-variant/5">
+                    <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider mb-2" htmlFor="zai-key-input">
+                      Configurar Clave API de Z.ai
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        id="zai-key-input"
+                        type="password"
+                        value={zaiInputKey}
+                        onChange={(e) => setZaiInputKey(e.target.value)}
+                        placeholder={hasZaiKey ? "••••••••••••••••••••••••••••••••••••" : "Tu clave de Z.ai / Zhipu..."}
+                        className="flex-1 bg-surface border border-outline-variant/10 rounded-sm py-2 px-3 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all"
+                      />
+                      <button 
+                        onClick={handleSaveZaiKey}
+                        disabled={isSavingZaiKey || !zaiInputKey.trim()}
+                        className="px-4 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5 focus:outline-none"
+                      >
+                        {isSavingZaiKey ? (
+                          <span className="animate-spin material-symbols-outlined text-xs">progress_activity</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-xs">save</span>
+                        )}
+                        <span>Guardar</span>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => setShowZaiHelp(!showZaiHelp)} 
+                    className="text-xs text-primary/70 hover:text-primary font-semibold flex items-center gap-1 transition-colors focus:outline-none focus:ring-0"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {showZaiHelp ? 'expand_less' : 'expand_more'}
+                    </span>
+                    <span>{showZaiHelp ? 'Ocultar guía de API Key' : 'Ver guía de API Key'}</span>
+                  </button>
+
+                  {showZaiHelp && (
+                    <div className="mt-6 bg-surface-container-low p-6 rounded-sm border-l-2 border-primary/30 text-xs leading-relaxed text-on-surface-variant transition-all duration-200">
+                      <span className="font-semibold text-primary block mb-3 text-xs">Configuración de credenciales:</span>
+                      <ol className="list-decimal pl-4 space-y-2 text-xs">
+                        <li>Obtén tu API Key registrándote en la plataforma oficial de desarrolladores de <a href="https://open.bigmodel.cn" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Zhipu AI / Z.ai</a>.</li>
+                        <li>Ingresa la clave en el campo superior o configúrala en tu archivo <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">.env.local</code> como <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">Z_AI_API_KEY</code>.</li>
                       </ol>
                     </div>
                   )}

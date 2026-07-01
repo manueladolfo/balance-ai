@@ -69,11 +69,13 @@ export async function GET(req: NextRequest) {
     } else {
       // If there are no documents, there are no entries
       const hasGeminiKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_google_gemini_api_key';
+      const hasZaiKey = !!process.env.Z_AI_API_KEY && process.env.Z_AI_API_KEY !== 'your_z_ai_api_key';
       return NextResponse.json({
         documents: [],
         entries: [],
         supabase: true,
-        hasGeminiKey
+        hasGeminiKey,
+        hasZaiKey
       });
     }
 
@@ -96,11 +98,13 @@ export async function GET(req: NextRequest) {
     })) || [];
 
     const hasGeminiKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_google_gemini_api_key';
+    const hasZaiKey = !!process.env.Z_AI_API_KEY && process.env.Z_AI_API_KEY !== 'your_z_ai_api_key';
     return NextResponse.json({
       documents: documents || [],
       entries: formattedEntries,
       supabase: true,
-      hasGeminiKey
+      hasGeminiKey,
+      hasZaiKey
     });
   } catch (error: any) {
     console.error('Fetch documents API error:', error);

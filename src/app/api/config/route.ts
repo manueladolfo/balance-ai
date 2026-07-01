@@ -4,35 +4,41 @@ import path from 'path';
 
 export async function POST(req: NextRequest) {
   try {
-    const { geminiApiKey } = await req.json();
-    if (!geminiApiKey) {
-      return NextResponse.json({ error: 'Falta el parámetro geminiApiKey.' }, { status: 400 });
+    const { geminiApiKey, zaiApiKey } = await req.json();
+
+    if (!geminiApiKey && !zaiApiKey) {
+      return NextResponse.json({ error: 'Falta proporcionar al menos una clave API (geminiApiKey o zaiApiKey).' }, { status: 400 });
     }
 
-    // 1. Guardar en memoria de inmediato para esta ejecución
-    process.env.GEMINI_API_KEY = geminiApiKey;
-
-    // 2. Intentar persistir en el archivo .env.local de la raíz del proyecto
     const envPath = path.join(process.cwd(), '.env.local');
     let envContent = '';
 
     if (fs.existsSync(envPath)) {
       envContent = fs.readFileSync(envPath, 'utf8');
-      
-      // Si la variable ya existe, la reemplazamos. Si no, la añadimos.
+    }
+
+    // Guardar Gemini API Key si se proporciona
+    if (geminiApiKey) {
+      process.env.GEMINI_API_KEY = geminiApiKey;
       const regex = /^GEMINI_API_KEY=.*$/m;
       if (regex.test(envContent)) {
         envContent = envContent.replace(regex, `GEMINI_API_KEY=${geminiApiKey}`);
       } else {
-        // Aseguramos que termine con salto de línea antes de añadir
-        if (envContent && !envContent.endsWith('\n')) {
-          envContent += '\n';
-        }
+        if (envContent && !envContent.endsWith('\n')) envContent += '\n';
         envContent += `GEMINI_API_KEY=${geminiApiKey}\n`;
       }
-    } else {
-      // Creamos el archivo desde cero
-      envContent = `GEMINI_API_KEY=${geminiApiKey}\n`;
+    }
+
+    // Guardar Z.ai API Key si se proporciona
+    if (zaiApiKey) {
+      process.env.Z_AI_API_KEY = zaiApiKey;
+      const regex = /^Z_AI_API_KEY=.*$/m;
+      if (regex.test(envContent)) {
+        envContent = envContent.replace(regex, `Z_AI_API_KEY=${zaiApiKey}`);
+      } else {
+        if (envContent && !envContent.endsWith('\n')) envContent += '\n';
+        envContent += `Z_AI_API_KEY=${zaiApiKey}\n`;
+      }
     }
 
     try {
@@ -41,9 +47,16 @@ export async function POST(req: NextRequest) {
       console.warn('Could not persist to .env.local (expected in read-only filesystems like Vercel):', fsError.message);
     }
 
-    return NextResponse.json({ success: true, message: 'Clave API de Gemini guardada y persistida con éxito.' });
+    return NextResponse.json({ 
+      success: true, 
+      message: geminiApiKey && zaiApiKey 
+        ? 'Claves API de Gemini y Z.ai guardadas correctamente.' 
+        : geminiApiKey 
+          ? 'Clave API de Gemini guardada correctamente.' 
+          : 'Clave API de Z.ai guardada correctamente.' 
+    });
   } catch (error: any) {
-    console.error('Error saving Gemini API Key:', error);
+    console.error('Error saving API Keys:', error);
     return NextResponse.json({ error: error.message || 'Error al guardar la clave API.' }, { status: 500 });
   }
 }
