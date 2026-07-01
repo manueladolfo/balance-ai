@@ -64,7 +64,11 @@ export async function POST(req: NextRequest) {
 
     docName = doc.name;
     storagePath = doc.storage_path;
-    docType = doc.type;
+    
+    // Extraer tipo de documento exacto si viene en el prefijo de la descripción
+    const subtypeMatch = doc.ia_description?.match(/^\[(.*?)\]/);
+    const exactDocType = subtypeMatch ? subtypeMatch[1] : doc.type;
+    docType = exactDocType;
 
     // Update status to processing
     await supabaseAdmin
@@ -177,7 +181,30 @@ INSTRUCCIONES IMPORTANTES:
 
     const response = await model.generateContent(parts);
     const text = response.response.text();
-    resultJson = JSON.parse(text);
+    
+    // Limpieza robusta del JSON retornado por Gemini
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    }
+    
+    try {
+      resultJson = JSON.parse(cleanText);
+    } catch (parseErr: any) {
+      console.error('Failed to parse Gemini JSON. Raw text:', text);
+      throw new Error('El modelo no devolvió un JSON estructurado válido: ' + parseErr.message);
+    }
+
+    // Validar y limpiar fecha contable
+    let entryDate = resultJson.entry_date;
+    if (!entryDate || typeof entryDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
+      const parsedDate = entryDate ? new Date(entryDate) : new Date();
+      if (!isNaN(parsedDate.getTime())) {
+        entryDate = parsedDate.toISOString().split('T')[0];
+      } else {
+        entryDate = new Date().toISOString().split('T')[0];
+      }
+    }
 
     // 3. Save entry in Database
     // Save entry header
@@ -185,9 +212,9 @@ INSTRUCCIONES IMPORTANTES:
       .from('accounting_entries')
       .insert({
         document_id: documentId,
-        entry_date: resultJson.entry_date,
-        reference: resultJson.reference,
-        concept: resultJson.concept,
+        entry_date: entryDate,
+        reference: resultJson.reference || 'S/R',
+        concept: resultJson.concept || 'Asiento contable',
         is_balanced: true
       })
       .select()
@@ -197,14 +224,27 @@ INSTRUCCIONES IMPORTANTES:
       throw new Error('Error al insertar el encabezado del asiento: ' + entryError.message);
     }
 
-    // Save entry lines
-    const dbLines = resultJson.lines.map((l: any) => ({
-      entry_id: entry.id,
-      line_type: l.line_type,
-      subaccount_code: l.subaccount_code,
-      subaccount_desc: l.subaccount_desc,
-      amount: l.amount
-    }));
+    // Validar y limpiar las líneas del asiento
+    if (!resultJson.lines || !Array.isArray(resultJson.lines) || resultJson.lines.length === 0) {
+      throw new Error('El análisis de la IA no generó ninguna línea contable.');
+    }
+
+    const dbLines = resultJson.lines
+      .map((l: any) => {
+        const lineType = String(l.line_type || 'debe').toLowerCase().trim();
+        return {
+          entry_id: entry.id,
+          line_type: lineType === 'haber' ? 'haber' : 'debe',
+          subaccount_code: String(l.subaccount_code || '').replace(/\./g, '').trim(),
+          subaccount_desc: String(l.subaccount_desc || 'Subcuenta contable').trim(),
+          amount: typeof l.amount === 'number' && !isNaN(l.amount) ? l.amount : 0
+        };
+      })
+      .filter((l: any) => l.subaccount_code !== '' && l.amount > 0);
+
+    if (dbLines.length === 0) {
+      throw new Error('No se generaron líneas contables con importes y códigos válidos.');
+    }
 
     const { error: linesError } = await supabaseAdmin
       .from('entry_lines')
@@ -214,12 +254,13 @@ INSTRUCCIONES IMPORTANTES:
       throw new Error('Error al insertar las líneas del asiento: ' + linesError.message);
     }
 
-    // Update document status
+    // Update document status preserving subtype prefix
+    const finalDescription = resultJson.ia_description || 'Procesado correctamente.';
     await supabaseAdmin
       .from('documents')
       .update({ 
         status: 'completed',
-        ia_description: resultJson.ia_description
+        ia_description: `[${exactDocType}] ${finalDescription}`
       })
       .eq('id', documentId);
 

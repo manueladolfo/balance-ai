@@ -34,7 +34,7 @@ interface Message {
 interface BulkFileItem {
   id: string;
   file: File;
-  type: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro';
+  type: string;
   status: 'pending' | 'uploading' | 'analyzing' | 'completed' | 'error';
   progress: number;
   errorMsg?: string;
@@ -81,6 +81,7 @@ export default function Home() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
   const [pgcAccounts, setPgcAccounts] = useState<any[]>([]);
+  const [pgcMetadataFile, setPgcMetadataFile] = useState<{ name: string; extension: string; imported_at?: string } | null>(null);
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -113,7 +114,7 @@ export default function Home() {
 
   // Upload & Training states
   const [subaccountDigits, setSubaccountDigits] = useState(8);
-  const [uploadType, setUploadType] = useState<'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro'>('Factura');
+  const [uploadType, setUploadType] = useState<string>('Factura proveedor');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingFileName, setProcessingFileName] = useState('');
@@ -157,6 +158,7 @@ export default function Home() {
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [isDocTypeDropdownOpen, setIsDocTypeDropdownOpen] = useState(false);
 
   // Notifications/Toasts
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -340,6 +342,7 @@ export default function Home() {
       const pgcData = await pgcRes.json();
       if (pgcRes.ok) {
         setPgcAccounts(pgcData.accounts || []);
+        setPgcMetadataFile(pgcData.metadataFile || null);
       }
 
       // Fetch synchronized notifications
@@ -456,6 +459,7 @@ export default function Home() {
         setDocuments([]);
         setEntries([]);
         setPgcAccounts([]);
+        setPgcMetadataFile(null);
       }
 
     } catch (err: any) {
@@ -828,6 +832,52 @@ export default function Home() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Helper to extract display type and clean description for documents
+  const getDocumentDisplayInfo = (doc: any) => {
+    if (doc.status === 'processing') {
+      const match = doc.ia_description?.match(/^\[(.*?)\]/);
+      return {
+        type: match ? match[1] : doc.type,
+        description: 'Procesando...'
+      };
+    }
+    
+    if (doc.status === 'error') {
+      const match = doc.ia_description?.match(/^\[(.*?)\]/);
+      return {
+        type: match ? match[1] : doc.type,
+        description: 'Revisión Necesaria'
+      };
+    }
+    
+    if (doc.status === 'pending') {
+      const match = doc.ia_description?.match(/^\[(.*?)\]/);
+      return {
+        type: match ? match[1] : doc.type,
+        description: 'Pendiente'
+      };
+    }
+
+    if (doc.ia_description) {
+      const match = doc.ia_description.match(/^\[(.*?)\] (.*)/);
+      if (match) {
+        return {
+          type: match[1],
+          description: match[2]
+        };
+      }
+      return {
+        type: doc.type === 'Factura' ? 'Factura de Servicio' : doc.type,
+        description: doc.ia_description
+      };
+    }
+
+    return {
+      type: doc.type,
+      description: 'Sin descripción'
+    };
+  };
+
   // Notification helper
   const addNotification = async (title: string, description: string, type: AppNotification['type']) => {
     // Alerta visual local inmediata
@@ -892,7 +942,7 @@ export default function Home() {
   };
 
   // Helper to upload and analyze a single file immediately
-  const uploadSingleFile = async (file: File, type: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro') => {
+  const uploadSingleFile = async (file: File, type: string) => {
     setProcessingFileName(file.name);
     setIsUploading(true);
     setUploadProgress(10);
@@ -1052,17 +1102,25 @@ export default function Home() {
       // Multiple files mode: open bulk manager
       const newBulkFiles: BulkFileItem[] = Array.from(files).map(file => {
         const name = file.name.toLowerCase();
-        let predictedType: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro' = uploadType;
+        let predictedType: string = uploadType;
         
         // Smart predictive classification based on filename
         if (name.includes('factura') || name.includes('invoice') || name.includes('fact') || name.includes('fac_')) {
-          predictedType = 'Factura';
+          predictedType = 'Factura proveedor';
         } else if (name.includes('ticket') || name.includes('gasolina') || name.includes('transporte') || name.includes('uber') || name.includes('cabify') || name.includes('peaje')) {
-          predictedType = 'Ticket';
+          predictedType = 'Tickets simplificados';
         } else if (name.includes('extracto') || name.includes('banco') || name.includes('sabadell') || name.includes('bbva') || name.includes('santander') || name.includes('bank') || name.includes('movimientos')) {
-          predictedType = 'Extracto';
+          predictedType = 'Extractos bancarios';
         } else if (name.includes('recibo') || name.includes('recib') || name.includes('cuota')) {
-          predictedType = 'Recibo';
+          predictedType = 'Recibos';
+        } else if (name.includes('nomina') || name.includes('sueldo')) {
+          predictedType = 'Nominas';
+        } else if (name.includes('seguro') || name.includes('ss_') || name.includes('tc1') || name.includes('tc2')) {
+          predictedType = 'Seguros sociales';
+        } else if (name.includes('impuesto') || name.includes('modelo') || name.includes('iva') || name.includes('irpf')) {
+          predictedType = 'Liquidación de impuestos';
+        } else if (name.includes('contrato') || name.includes('escritura')) {
+          predictedType = 'Escrituras-contratos';
         }
         
         return {
@@ -1251,6 +1309,13 @@ export default function Home() {
       return;
     }
 
+    if (pgcAccounts.length > 0) {
+      alert('Únicamente se puede aportar un Plan General Contable por empresa. Para importar uno nuevo, debes borrar el actual primero.');
+      // Reset input value so it triggers onChange if selected again
+      e.target.value = '';
+      return;
+    }
+
     const client = supabase;
     if (!client) {
       showToast('Supabase no está configurado.', 'error');
@@ -1298,7 +1363,10 @@ export default function Home() {
             headers: { 'Authorization': `Bearer ${session.access_token}` }
           });
           const pgcData = await pgcRes.json();
-          if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
+          if (pgcRes.ok) {
+            setPgcAccounts(pgcData.accounts || []);
+            setPgcMetadataFile(pgcData.metadataFile || null);
+          }
 
         } catch (err: any) {
           console.error(err);
@@ -1355,7 +1423,7 @@ export default function Home() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${session.access_token}`
               },
-              body: JSON.stringify({ accounts, companyId: selectedCompanyId })
+              body: JSON.stringify({ accounts, companyId: selectedCompanyId, fileName: file.name })
             });
 
             setUploadProgress(80);
@@ -1367,7 +1435,10 @@ export default function Home() {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
               });
               const pgcData = await pgcRes.json();
-              if (pgcRes.ok) setPgcAccounts(pgcData.accounts || []);
+              if (pgcRes.ok) {
+                setPgcAccounts(pgcData.accounts || []);
+                setPgcMetadataFile(pgcData.metadataFile || null);
+              }
             } else {
               const data = await res.json();
               throw new Error(data.error || 'Error al guardar el plan contable.');
@@ -1391,6 +1462,44 @@ export default function Home() {
     } catch (err: any) {
       console.error(err);
       showToast(err.message || 'Error de autenticación al importar el Plan Contable.', 'error');
+    }
+  };
+
+  // Delete PGC accounts and metadata for active company
+  const handleDeletePgc = async () => {
+    if (!selectedCompanyId) return;
+
+    if (!window.confirm('¿Estás seguro de que deseas eliminar el Plan Contable de esta empresa? Se borrarán todas las subcuentas asociadas.')) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const client = supabase;
+      if (!client) throw new Error('Supabase no está configurado.');
+
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) throw new Error('No se encontró sesión activa.');
+
+      const res = await fetch(`/api/pgc?companyId=${selectedCompanyId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al eliminar el Plan Contable.');
+      }
+
+      setPgcAccounts([]);
+      setPgcMetadataFile(null);
+      showToast('Plan Contable eliminado correctamente.', 'success');
+      addNotification('Plan Contable Eliminado', 'Se ha eliminado el Plan Contable de la empresa.', 'warning');
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Error al eliminar el Plan Contable.', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -3091,42 +3200,51 @@ export default function Home() {
                                 <div className="flex items-start gap-3">
                                   <span className="material-symbols-outlined text-on-surface-variant mt-0.5 text-base">description</span>
                                   <div className="flex flex-col text-left">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="font-semibold text-primary">{doc.name}</span>
-                                      {/* Insignias de Almacenamiento */}
-                                      {doc.storage_type === 'local' && (
-                                        <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider ${
-                                          availableLocalDocIds.includes(doc.id) 
-                                            ? 'bg-primary/5 text-primary border border-primary/10' 
-                                            : 'bg-amber-500/10 text-amber-500 border border-amber-500/10'
-                                        }`}>
-                                          Local
-                                        </span>
-                                      )}
-                                      {doc.storage_type === 'drive' && (
-                                        <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-secondary/5 text-secondary border border-secondary/10">
-                                          Drive
-                                        </span>
-                                      )}
-                                      {(!doc.storage_type || doc.storage_type === 'supabase') && (
-                                        <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-surface-container-high text-on-surface-variant/80 border border-outline-variant/5">
-                                          Nube
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                      <span className="text-[9px] text-on-surface-variant truncate max-w-[200px] italic">
-                                        {doc.status === 'completed' ? `Factura de Servicio` : 
-                                         doc.status === 'processing' ? 'Procesando...' : 
-                                         doc.status === 'error' ? 'Revisión Necesaria' : 'Pendiente'}
-                                      </span>
-                                      {doc.storage_type === 'local' && !availableLocalDocIds.includes(doc.id) && (
-                                        <span className="flex items-center text-amber-500 text-[8px] font-bold gap-0.5 select-none" title="Este archivo binario se guardó localmente en otro navegador o dispositivo y no está disponible aquí. Importa un backup para visualizarlo.">
-                                          <span className="material-symbols-outlined text-[10px] font-bold">warning</span>
-                                          No disponible en este dispositivo
-                                        </span>
-                                      )}
-                                    </div>
+                                    {(() => {
+                                      const { type: displayType, description: displayDesc } = getDocumentDisplayInfo(doc);
+                                      return (
+                                        <>
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="font-semibold text-primary">{doc.name}</span>
+                                            {/* Subtype Badge */}
+                                            <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/15">
+                                              {displayType}
+                                            </span>
+                                            {/* Insignias de Almacenamiento */}
+                                            {doc.storage_type === 'local' && (
+                                              <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider ${
+                                                availableLocalDocIds.includes(doc.id) 
+                                                  ? 'bg-primary/5 text-primary border border-primary/10' 
+                                                  : 'bg-amber-500/10 text-amber-500 border border-amber-500/10'
+                                              }`}>
+                                                Local
+                                              </span>
+                                            )}
+                                            {doc.storage_type === 'drive' && (
+                                              <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-secondary/5 text-secondary border border-secondary/10">
+                                                Drive
+                                              </span>
+                                            )}
+                                            {(!doc.storage_type || doc.storage_type === 'supabase') && (
+                                              <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-surface-container-high text-on-surface-variant/80 border border-outline-variant/5">
+                                                Nube
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1.5 mt-0.5">
+                                            <span className="text-[9px] text-on-surface-variant truncate max-w-[320px] italic" title={displayDesc}>
+                                              {displayDesc}
+                                            </span>
+                                            {doc.storage_type === 'local' && !availableLocalDocIds.includes(doc.id) && (
+                                              <span className="flex items-center text-amber-500 text-[8px] font-bold gap-0.5 select-none" title="Este archivo binario se guardó localmente en otro navegador o dispositivo y no está disponible aquí. Importa un backup para visualizarlo.">
+                                                <span className="material-symbols-outlined text-[10px] font-bold">warning</span>
+                                                No disponible en este dispositivo
+                                              </span>
+                                            )}
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                               </td>
@@ -3318,23 +3436,76 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Pills selector de tipo de carga */}
-              <div className="flex items-center gap-4 shrink-0 select-none mb-2">
-                <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">Tipo de Documento:</span>
-                <div className="flex flex-wrap gap-2">
-                  {['Factura', 'Recibo', 'Ticket', 'Extracto', 'Otro'].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setUploadType(type as any)}
-                      className={`px-4 py-1.5 text-xs font-semibold rounded-sm border transition-all focus:outline-none ${
-                        uploadType === type 
-                          ? 'bg-secondary-container/20 border-secondary-container/30 text-on-secondary-container font-semibold' 
-                          : 'bg-surface border-outline-variant/10 text-on-surface-variant hover:text-on-surface'
-                      }`}
-                    >
-                      {type === 'Extracto' ? 'Extractos' : type === 'Otro' ? 'Otros' : `${type}s`}
-                    </button>
-                  ))}
+              {/* Selector de tipo de carga (Dropdown Premium) */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0 select-none mb-4 bg-surface p-4 rounded-sm border border-outline-variant/10 shadow-precision text-left">
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest shrink-0">Categoría de Importación:</span>
+                <div className="relative w-full sm:w-64">
+                  <button 
+                    onClick={() => setIsDocTypeDropdownOpen(!isDocTypeDropdownOpen)}
+                    className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-surface-container-low border border-outline-variant/15 hover:border-primary/50 text-xs font-semibold rounded-sm text-primary transition-all focus:outline-none select-none shadow-sm cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[16px] text-secondary">
+                        {uploadType === 'Facturas cliente' || uploadType === 'Factura proveedor' ? 'receipt' :
+                         uploadType === 'Extractos bancarios' ? 'account_balance' :
+                         uploadType === 'Recibos' ? 'receipt_long' :
+                         uploadType === 'Tickets simplificados' ? 'sell' :
+                         uploadType === 'Escrituras-contratos' ? 'history_edu' :
+                         uploadType === 'Liquidación de impuestos' ? 'percent' :
+                         uploadType === 'Nominas' ? 'badge' :
+                         uploadType === 'Seguros sociales' ? 'shield' : 'folder_open'}
+                      </span>
+                      <span>{uploadType}</span>
+                    </div>
+                    <span className="material-symbols-outlined text-[14px] text-on-surface-variant transition-transform duration-200" style={{ transform: isDocTypeDropdownOpen ? 'rotate(180deg)' : 'none' }}>
+                      expand_more
+                    </span>
+                  </button>
+
+                  {isDocTypeDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setIsDocTypeDropdownOpen(false)} />
+                      <div className="absolute left-0 mt-1.5 w-full bg-surface border border-outline-variant/15 rounded-sm shadow-lg z-30 py-1 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-1 duration-150">
+                        {[
+                          'Facturas cliente',
+                          'Factura proveedor',
+                          'Extractos bancarios',
+                          'Recibos',
+                          'Tickets simplificados',
+                          'Escrituras-contratos',
+                          'Liquidación de impuestos',
+                          'Nominas',
+                          'Seguros sociales',
+                          'Otros'
+                        ].map((type) => (
+                          <button
+                            key={type}
+                            onClick={() => {
+                              setUploadType(type);
+                              setIsDocTypeDropdownOpen(false);
+                            }}
+                            className={`w-full px-4 py-2 text-xs text-left transition-colors flex items-center gap-2.5 ${
+                              uploadType === type 
+                                ? 'bg-secondary/10 text-secondary font-bold' 
+                                : 'text-on-surface hover:bg-surface-container-low'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[14px] opacity-75">
+                              {type === 'Facturas cliente' || type === 'Factura proveedor' ? 'receipt' :
+                               type === 'Extractos bancarios' ? 'account_balance' :
+                               type === 'Recibos' ? 'receipt_long' :
+                               type === 'Tickets simplificados' ? 'sell' :
+                               type === 'Escrituras-contratos' ? 'history_edu' :
+                               type === 'Liquidación de impuestos' ? 'percent' :
+                               type === 'Nominas' ? 'badge' :
+                               type === 'Seguros sociales' ? 'shield' : 'folder_open'}
+                            </span>
+                            <span>{type}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -3383,23 +3554,33 @@ export default function Home() {
                               )}
                             </div>
 
-                            {/* Selector de pastillas (Pills) si está pendiente, o barra de progreso/estado si está procesando */}
+                            {/* Selector de tipo (Dropdown Premium para Carga Masiva) */}
                             {item.status === 'pending' ? (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                {['Factura', 'Recibo', 'Ticket', 'Extracto', 'Otro'].map((cat) => (
-                                  <button
-                                    key={cat}
-                                    disabled={isBulkProcessing}
-                                    onClick={() => setBulkFiles(prev => prev.map(f => f.id === item.id ? { ...f, type: cat as any } : f))}
-                                    className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-wider border transition-all focus:outline-none ${
-                                      item.type === cat
-                                        ? 'bg-primary text-white border-primary'
-                                        : 'bg-transparent text-on-surface-variant border-outline-variant/10 hover:bg-surface-container-low'
-                                    }`}
-                                  >
-                                    {cat}
-                                  </button>
-                                ))}
+                              <div className="flex items-center gap-2 pt-1 text-left select-none">
+                                <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Categoría:</span>
+                                <select
+                                  disabled={isBulkProcessing}
+                                  value={item.type}
+                                  onChange={(e) => setBulkFiles(prev => prev.map(f => f.id === item.id ? { ...f, type: e.target.value } : f))}
+                                  className="px-2.5 py-1 bg-surface border border-outline-variant/15 text-[10px] font-semibold rounded-sm text-primary transition-all focus:outline-none cursor-pointer focus:border-primary/50"
+                                >
+                                  {[
+                                    'Factura proveedor',
+                                    'Facturas cliente',
+                                    'Extractos bancarios',
+                                    'Recibos',
+                                    'Tickets simplificados',
+                                    'Escrituras-contratos',
+                                    'Liquidación de impuestos',
+                                    'Nominas',
+                                    'Seguros sociales',
+                                    'Otros'
+                                  ].map((cat) => (
+                                    <option key={cat} value={cat}>
+                                      {cat}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             ) : (
                               <div className="space-y-1.5 pt-1">
@@ -3551,26 +3732,60 @@ export default function Home() {
 
                     <div className="h-px bg-outline-variant/10"></div>
 
-                    {/* CSV/PDF upload PGC button */}
-                    <div className="space-y-2">
-                      <button 
-                        onClick={() => pgcInputRef.current?.click()}
-                        className="w-full flex items-center justify-center gap-2 border border-outline-variant/15 hover:bg-surface-container-low text-xs py-2.5 rounded-sm text-primary font-semibold transition-colors focus:outline-none select-none"
-                      >
-                        <span className="material-symbols-outlined text-sm">table_chart</span>
-                        <span>Importar Plan Contable (CSV / PDF)</span>
-                      </button>
-                      <input 
-                        ref={pgcInputRef}
-                        onChange={handlePgcUpload}
-                        type="file" 
-                        accept=".csv,.txt,.pdf" 
-                        className="hidden"
-                      />
-                      <p className="text-[9px] text-on-surface-variant/60 text-center select-none">
-                        Mapee su catálogo de cuentas contables en formato CSV o PDF.
-                      </p>
-                    </div>
+                    {/* CSV/PDF upload PGC button or Active File display */}
+                    {pgcAccounts.length > 0 ? (
+                      <div className="bg-surface-container-low/40 rounded-sm border border-outline-variant/10 p-3 flex flex-col gap-2 animate-fade-in text-left">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">Plan Contable Activo</span>
+                          <span className="text-[8px] bg-secondary/15 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">
+                            {pgcAccounts.length} cuentas
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 bg-surface p-2.5 rounded-sm border border-outline-variant/5">
+                          <span className="material-symbols-outlined text-secondary text-lg select-none">
+                            {pgcMetadataFile?.extension === 'pdf' ? 'picture_as_pdf' : 'table_chart'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-primary truncate leading-normal" title={pgcMetadataFile?.name || 'Plan General Contable'}>
+                              {pgcMetadataFile?.name || 'Plan General Contable'}
+                            </p>
+                            <p className="text-[9px] text-on-surface-variant/80 font-medium">
+                              Extensión: .{(pgcMetadataFile?.extension || 'db').toUpperCase()}
+                            </p>
+                          </div>
+                          <button
+                            onClick={handleDeletePgc}
+                            className="p-1 rounded-full hover:bg-error/15 text-on-surface-variant hover:text-error transition-colors focus:outline-none cursor-pointer"
+                            title="Eliminar Plan Contable"
+                          >
+                            <span className="material-symbols-outlined text-base">delete</span>
+                          </button>
+                        </div>
+                        <p className="text-[9px] text-on-surface-variant/60">
+                          Para importar otro Plan Contable, debes eliminar primero el actual.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <button 
+                          onClick={() => pgcInputRef.current?.click()}
+                          className="w-full flex items-center justify-center gap-2 border border-outline-variant/15 hover:bg-surface-container-low text-xs py-2.5 rounded-sm text-primary font-semibold transition-colors focus:outline-none select-none cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">table_chart</span>
+                          <span>Importar Plan Contable (CSV / PDF)</span>
+                        </button>
+                        <input 
+                          ref={pgcInputRef}
+                          onChange={handlePgcUpload}
+                          type="file" 
+                          accept=".csv,.txt,.pdf" 
+                          className="hidden"
+                        />
+                        <p className="text-[9px] text-on-surface-variant/60 text-center select-none">
+                          Mapee su catálogo de cuentas contables en formato CSV o PDF.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* System Metrics */}

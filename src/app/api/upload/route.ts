@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    const type = (formData.get('type') as 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro') || 'Factura';
+    const rawType = formData.get('type') as string || 'Factura proveedor';
     const companyId = formData.get('companyId') as string;
     const storageType = (formData.get('storageType') as 'supabase' | 'local' | 'drive') || 'supabase';
     const driveFileId = formData.get('driveFileId') as string || '';
@@ -68,6 +68,20 @@ export async function POST(req: NextRequest) {
       storagePath = 'drive';
     }
 
+    // Map 10 user-facing types to 5 DB types (CHECK constraint check)
+    let type: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro' = 'Otro';
+    if (rawType === 'Facturas cliente' || rawType === 'Factura proveedor' || rawType === 'Factura') {
+      type = 'Factura';
+    } else if (rawType === 'Recibos' || rawType === 'Recibo') {
+      type = 'Recibo';
+    } else if (rawType === 'Tickets simplificados' || rawType === 'Ticket') {
+      type = 'Ticket';
+    } else if (rawType === 'Extractos bancarios' || rawType === 'Extracto') {
+      type = 'Extracto';
+    } else {
+      type = 'Otro';
+    }
+
     // 2. Insert record in Supabase Database
     const { data: dbData, error: dbError } = await supabaseAdmin
       .from('documents')
@@ -78,7 +92,8 @@ export async function POST(req: NextRequest) {
         type,
         company_id: companyId,
         storage_type: storageType,
-        drive_file_id: driveFileId || null
+        drive_file_id: driveFileId || null,
+        ia_description: `[${rawType}]` // Store raw type inside brackets as prefix
       })
       .select()
       .single();

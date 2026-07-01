@@ -49,6 +49,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado para guardar el Plan Contable de esta empresa.' }, { status: 403 });
     }
 
+    // Verify PGC doesn't already exist
+    const { count: existingCount, error: countError } = await supabaseAdmin
+      .from('pgc_accounts')
+      .select('code', { count: 'exact', head: true })
+      .eq('company_id', companyId);
+
+    if (!countError && existingCount && existingCount > 0) {
+      return NextResponse.json({ 
+        error: 'Ya existe un Plan General Contable importado para esta empresa. Por favor, elimine el anterior antes de importar uno nuevo.' 
+      }, { status: 400 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64File = buffer.toString('base64');
@@ -126,6 +138,22 @@ Devuelve la lista en un formato JSON estructurado que cumpla con el esquema prop
     if (dbAccounts.length === 0) {
       return NextResponse.json({ error: 'No se encontraron cuentas contables válidas en el documento.' }, { status: 422 });
     }
+
+    const fileName = file.name;
+    const fileExtension = fileName.split('.').pop() || 'pdf';
+    const metadataStr = JSON.stringify({
+      name: fileName,
+      extension: fileExtension,
+      imported_at: new Date().toISOString()
+    });
+
+    // Add metadata file account
+    dbAccounts.push({
+      code: 'METADATA_FILE',
+      description: metadataStr,
+      is_operational: false,
+      company_id: companyId
+    });
 
     // Upsert accounts in Supabase using the composite key constraint
     const { error: dbError } = await supabaseAdmin
