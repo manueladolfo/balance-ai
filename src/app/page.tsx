@@ -2429,7 +2429,7 @@ export default function Home() {
         </header>
 
         {/* Dynamic Tab Content Area */}
-        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-lg pb-[84px] md:pb-lg gap-lg min-h-0">
+        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-lg pb-28 md:pb-lg gap-lg min-h-0">
           
           {/* ESTADO VACÍO CUANDO NO HAY EMPRESAS */}
           {companies.length === 0 && !isLoading && activeTab !== 'settings' && (
