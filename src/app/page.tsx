@@ -1646,7 +1646,7 @@ export default function Home() {
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   required
-                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-[16px] md:text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
                   placeholder="ejemplo@empresa.com o usuario"
                   disabled={isAuthLoading}
                 />
@@ -1664,7 +1664,7 @@ export default function Home() {
                     value={authPassword}
                     onChange={(e) => setAuthPassword(e.target.value)}
                     required
-                    className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 pr-10 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                    className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 pr-10 text-[16px] md:text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
                     placeholder="••••••••"
                     disabled={isAuthLoading}
                   />
@@ -1721,7 +1721,7 @@ export default function Home() {
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   required
-                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-[16px] md:text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
                   placeholder="Juan Pérez"
                   disabled={isAuthLoading}
                 />
@@ -1740,7 +1740,7 @@ export default function Home() {
                   type="text"
                   value={regUsername}
                   onChange={(e) => setRegUsername(e.target.value)}
-                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-[16px] md:text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
                   placeholder="juan_perez"
                   disabled={isAuthLoading}
                 />
@@ -1757,7 +1757,7 @@ export default function Home() {
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                   required
-                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                  className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-[16px] md:text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
                   placeholder="ejemplo@empresa.com"
                   disabled={isAuthLoading}
                 />
@@ -1776,7 +1776,7 @@ export default function Home() {
                     onChange={(e) => setRegPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 pr-10 text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                    className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 pr-10 text-[16px] md:text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
                     placeholder="••••••••"
                     disabled={isAuthLoading}
                   />
@@ -2429,7 +2429,7 @@ export default function Home() {
         </header>
 
         {/* Dynamic Tab Content Area */}
-        <div className="flex-1 overflow-hidden flex flex-col p-lg pb-[76px] md:pb-lg gap-lg min-h-0">
+        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col p-lg pb-[84px] md:pb-lg gap-lg min-h-0">
           
           {/* ESTADO VACÍO CUANDO NO HAY EMPRESAS */}
           {companies.length === 0 && !isLoading && activeTab !== 'settings' && (
@@ -2453,7 +2453,7 @@ export default function Home() {
 
           {/* TAB 1: PANEL DE CONTROL (HISTORIAL Y CHAT HORIZONTAL ABAJO) */}
           {companies.length > 0 && activeTab === 'dashboard' && (
-            <div className="flex-1 flex flex-col gap-8 min-h-0 overflow-hidden pt-4">
+            <div className="flex-1 flex flex-col gap-4 md:gap-8 overflow-visible md:overflow-hidden min-h-0 pt-4">
               
               {/* Fila de Tarjetas KPI - Más altas, espaciadas y con sombras sutiles */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 shrink-0">
@@ -2699,8 +2699,8 @@ export default function Home() {
               </div>
 
               {/* Tabla de Historial de Documentos */}
-              <section className="flex-1 flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden min-h-0 shadow-precision">
-                <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
+              <section className="flex-none md:flex-1 flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden min-h-[280px] shadow-precision">
+                <div className="flex-1 overflow-auto custom-scrollbar">
                   {isLoading ? (
                     <div className="h-full w-full flex items-center justify-center py-10 text-on-surface-variant text-xs">
                       <span className="animate-spin material-symbols-outlined mr-2 text-xs">progress_activity</span>
