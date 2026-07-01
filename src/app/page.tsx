@@ -2527,7 +2527,7 @@ export default function Home() {
                 className="flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary text-[10px] font-semibold transition-colors focus:outline-none focus:ring-0 active:scale-95"
                 title="Crear nueva empresa"
               >
-                <span className="material-symbols-outlined text-xs font-bold">add</span>
+                <span className="material-symbols-outlined text-xs">add</span>
                 <span>Añadir</span>
               </button>
               {selectedCompanyId && (
@@ -2608,32 +2608,32 @@ export default function Home() {
         
         {/* Top Bar Header */}
         <header className="flex justify-between items-center px-4 sm:px-6 md:px-8 w-full shrink-0 h-16 bg-surface border-b border-outline-variant/5">
-          <div className="flex items-center gap-2 md:gap-6 flex-1 min-w-0">
+          <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
               className="md:hidden p-1.5 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95 mr-1 shrink-0"
               title="Abrir menú"
             >
-              <span className="material-symbols-outlined text-sm font-bold">menu</span>
+              <span className="material-symbols-outlined text-sm">menu</span>
             </button>
             {activeTab === 'dashboard' && (
               <div className="flex items-center gap-sm min-w-0">
                 <span className="font-bold text-sm md:text-headline-md text-primary font-headline-md truncate">
-                  <span className="md:hidden">Historial</span>
-                  <span className="hidden md:inline">Histórico de Documentos</span>
+                  <span className="lg:hidden">Historial</span>
+                  <span className="hidden lg:inline">Histórico de Documentos</span>
                 </span>
               </div>
             )}
             {activeTab === 'documents' && (
               <span className="font-bold text-sm md:text-headline-md text-primary font-headline-md truncate">
-                <span className="md:hidden">Mis Documentos</span>
-                <span className="hidden md:inline">Carga de Documentos</span>
+                <span className="lg:hidden">Carga</span>
+                <span className="hidden lg:inline">Carga de Documentos</span>
               </span>
             )}
             {activeTab === 'settings' && (
               <span className="font-bold text-sm md:text-headline-md text-primary font-headline-md truncate">
-                <span className="md:hidden">Configuración</span>
-                <span className="hidden md:inline">Configuración del Sistema</span>
+                <span className="lg:hidden">Configuración</span>
+                <span className="hidden lg:inline">Configuración del Sistema</span>
               </span>
             )}
 
@@ -2651,7 +2651,7 @@ export default function Home() {
                     setSelectedCompanyId(cid);
                     localStorage.setItem('active_company_id', cid);
                   }}
-                  className="bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none min-w-[90px] sm:min-w-[150px] max-w-[120px] xs:max-w-[150px] sm:max-w-[220px] transition-colors truncate"
+                  className="bg-surface-container-low border border-outline-variant/15 hover:bg-surface-container-high rounded-sm py-1.5 pl-2.5 pr-8 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary cursor-pointer appearance-none min-w-[90px] sm:min-w-[130px] max-w-[120px] xs:max-w-[150px] sm:max-w-[220px] transition-colors truncate"
                 >
                   {companies.length === 0 ? (
                     <option value="">{isLoadingCompanies ? 'Cargando empresas...' : 'Sin empresas'}</option>
@@ -2670,7 +2670,7 @@ export default function Home() {
                 className="p-1 rounded-sm border border-outline-variant/15 hover:bg-surface-container-low text-primary flex items-center justify-center transition-colors focus:outline-none focus:ring-0 active:scale-95 shrink-0"
                 title="Crear nueva empresa"
               >
-                <span className="material-symbols-outlined text-sm font-bold">add</span>
+                <span className="material-symbols-outlined text-sm">add</span>
               </button>
               {selectedCompanyId && (
                 <button
@@ -2934,7 +2934,7 @@ export default function Home() {
                 onClick={() => setIsCreateCompanyModalOpen(true)}
                 className="mt-2 px-6 py-2 bg-primary text-white text-xs font-semibold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all flex items-center gap-2 shadow-precision focus:outline-none"
               >
-                <span className="material-symbols-outlined text-sm font-bold">add</span>
+                <span className="material-symbols-outlined text-sm">add</span>
                 <span>Crear Empresa</span>
               </button>
             </div>
@@ -3288,12 +3288,12 @@ export default function Home() {
                                             )}
                                           </div>
                                           <div className="flex items-center gap-1.5 mt-0.5">
-                                            <span className="text-[9px] text-on-surface-variant truncate max-w-[320px] italic" title={displayDesc}>
+                                            <span className="text-[9px] text-on-surface-variant truncate max-w-[200px] md:max-w-[320px] italic" title={displayDesc}>
                                               {displayDesc}
                                             </span>
                                             {doc.storage_type === 'local' && !availableLocalDocIds.includes(doc.id) && (
                                               <span className="flex items-center text-amber-500 text-[8px] font-bold gap-0.5 select-none" title="Este archivo binario se guardó localmente en otro navegador o dispositivo y no está disponible aquí. Importa un backup para visualizarlo.">
-                                                <span className="material-symbols-outlined text-[10px] font-bold">warning</span>
+                                                <span className="material-symbols-outlined text-[10px]">warning</span>
                                                 No disponible en este dispositivo
                                               </span>
                                             )}
