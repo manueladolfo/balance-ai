@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS public.documents (
     storage_path TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'error')),
     type TEXT NOT NULL DEFAULT 'Factura' CHECK (type IN ('Factura', 'Recibo', 'Ticket', 'Extracto', 'Otro')),
+    storage_type TEXT NOT NULL DEFAULT 'supabase' CHECK (storage_type IN ('supabase', 'local', 'drive')),
+    drive_file_id TEXT,
     ia_description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

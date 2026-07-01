@@ -17,8 +17,10 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File;
     const type = (formData.get('type') as 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro') || 'Factura';
     const companyId = formData.get('companyId') as string;
+    const storageType = (formData.get('storageType') as 'supabase' | 'local' | 'drive') || 'supabase';
+    const driveFileId = formData.get('driveFileId') as string || '';
 
-    if (!file) {
+    if (!file && storageType === 'supabase') {
       return NextResponse.json({ error: 'No se ha proporcionado ningún archivo.' }, { status: 400 });
     }
 
@@ -38,32 +40,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado para subir documentos a esta empresa.' }, { status: 403 });
     }
 
-    const name = file.name;
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const name = file ? file.name : 'Documento';
+    let storagePath = 'local';
 
-    let docId = '';
-    let storagePath = '';
+    if (storageType === 'supabase' && file) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const fileName = `${Date.now()}_${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const bucketName = 'accounting-docs';
 
-    // 1. Upload to Supabase Storage
-    const fileName = `${Date.now()}_${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const bucketName = 'accounting-docs';
+      // Insert file in storage
+      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        .from(bucketName)
+        .upload(fileName, buffer, {
+          contentType: file.type,
+          cacheControl: '3600',
+          upsert: true
+        });
 
-    // Insert file in storage
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from(bucketName)
-      .upload(fileName, buffer, {
-        contentType: file.type,
-        cacheControl: '3600',
-        upsert: true
-      });
+      if (uploadError) {
+        console.error('Supabase upload error:', uploadError);
+        return NextResponse.json({ error: 'Error al subir el archivo a Supabase Storage.' }, { status: 500 });
+      }
 
-    if (uploadError) {
-      console.error('Supabase upload error:', uploadError);
-      return NextResponse.json({ error: 'Error al subir el archivo a Supabase Storage.' }, { status: 500 });
+      storagePath = uploadData.path;
+    } else if (storageType === 'drive') {
+      storagePath = 'drive';
     }
-
-    storagePath = uploadData.path;
 
     // 2. Insert record in Supabase Database
     const { data: dbData, error: dbError } = await supabaseAdmin
@@ -73,7 +76,9 @@ export async function POST(req: NextRequest) {
         storage_path: storagePath,
         status: 'pending',
         type,
-        company_id: companyId
+        company_id: companyId,
+        storage_type: storageType,
+        drive_file_id: driveFileId || null
       })
       .select()
       .single();
@@ -83,7 +88,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error al guardar el documento en la base de datos.' }, { status: 500 });
     }
 
-    docId = dbData.id;
+    const docId = dbData.id;
 
     return NextResponse.json({
       success: true,

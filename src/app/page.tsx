@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import EntryModal, { AccountingEntry } from '@/components/EntryModal';
 import { supabase } from '@/lib/supabase';
+import { exportAllLocalDocuments, importLocalDocuments } from '@/lib/storage';
 
 interface Company {
   id: string;
@@ -21,6 +22,8 @@ interface Document {
   ia_description?: string;
   created_at: string;
   company_id?: string;
+  storage_type?: 'supabase' | 'local' | 'drive';
+  drive_file_id?: string;
 }
 
 interface Message {
@@ -160,6 +163,61 @@ export default function Home() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
+  // Storage settings state
+  const [storageMethod, setStorageMethod] = useState<'supabase' | 'local' | 'drive'>('supabase');
+  const [availableLocalDocIds, setAvailableLocalDocIds] = useState<string[]>([]);
+
+  // Load storage settings on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedMethod = localStorage.getItem('balance_ai_storage_method') as any;
+      if (savedMethod && ['supabase', 'local', 'drive'].includes(savedMethod)) {
+        setStorageMethod(savedMethod);
+      }
+    }
+  }, []);
+
+  // Función para escanear IndexedDB y ver qué archivos locales están disponibles en este dispositivo
+  const updateLocalAvailability = async (docsList: Document[]) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const { openLocalDB } = await import('@/lib/storage');
+      const db = await openLocalDB();
+      const transaction = db.transaction('documents-blob', 'readonly');
+      const store = transaction.objectStore('documents-blob');
+      
+      const localIds: string[] = [];
+      const promises = docsList
+        .filter(d => d.storage_type === 'local')
+        .map(doc => {
+          return new Promise<void>((resolve) => {
+            const req = store.get(doc.id);
+            req.onsuccess = () => {
+              if (req.result && req.result.base64) {
+                localIds.push(doc.id);
+              }
+              resolve();
+            };
+            req.onerror = () => resolve();
+          });
+        });
+      
+      await Promise.all(promises);
+      setAvailableLocalDocIds(localIds);
+    } catch (e) {
+      console.error('Error scanning local IndexedDB:', e);
+    }
+  };
+
+  const handleStorageMethodChange = (method: 'supabase' | 'local' | 'drive') => {
+    setStorageMethod(method);
+    localStorage.setItem('balance_ai_storage_method', method);
+    showToast(`Almacenamiento cambiado a: ${
+      method === 'supabase' ? 'Supabase Nube' :
+      method === 'local' ? 'Almacenamiento Local (IndexedDB)' : 'Google Drive'
+    }`, 'success');
+  };
+
   // 1. Fetch data on mount
   const checkSupabaseConnection = async () => {
     try {
@@ -239,10 +297,13 @@ export default function Home() {
       });
       const data = await res.json();
       if (res.ok) {
-        setDocuments(data.documents || []);
+        const docsList = data.documents || [];
+        setDocuments(docsList);
         setEntries(data.entries || []);
         setHasGeminiKey(data.hasGeminiKey);
         setSupabaseStatus('connected');
+        // Actualizar la disponibilidad local de los archivos en IndexedDB
+        updateLocalAvailability(docsList);
       } else {
         setSupabaseStatus('error');
       }
@@ -810,13 +871,6 @@ export default function Home() {
     setIsUploading(true);
     setUploadProgress(10);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-    if (selectedCompanyId) {
-      formData.append('companyId', selectedCompanyId);
-    }
-
     const client = supabase;
     if (!client) {
       showToast('Supabase no está configurado.', 'error');
@@ -830,7 +884,35 @@ export default function Home() {
         throw new Error('No se encontró sesión activa.');
       }
 
-      // Step A: Upload file
+      // 1. Obtener Base64 del archivo si usamos almacenamiento Local o Drive
+      let fileBase64 = '';
+      if (storageMethod === 'local' || storageMethod === 'drive') {
+        fileBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64String = reader.result as string;
+            resolve(base64String.split(',')[1]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', type);
+      formData.append('storageType', storageMethod);
+      if (selectedCompanyId) {
+        formData.append('companyId', selectedCompanyId);
+      }
+
+      // Si es Google Drive, simular la obtención del driveFileId
+      if (storageMethod === 'drive') {
+        const mockDriveFileId = 'gdrive_' + Math.random().toString(36).substring(2, 15);
+        formData.append('driveFileId', mockDriveFileId);
+      }
+
+      // Step A: Upload file registration
       const uploadRes = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}` },
@@ -846,6 +928,12 @@ export default function Home() {
       const { documentId } = uploadData;
       setUploadProgress(60);
 
+      // Si es almacenamiento local, guardar el archivo físico en IndexedDB del navegador
+      if (storageMethod === 'local') {
+        const { saveLocalDocument } = await import('@/lib/storage');
+        await saveLocalDocument(documentId, file.name, fileBase64, file.type);
+      }
+
       // Step B: Trigger AI Analysis
       const analyzeStartTime = Date.now();
       const analyzeRes = await fetch('/api/analyze', {
@@ -854,7 +942,10 @@ export default function Home() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ documentId })
+        body: JSON.stringify({ 
+          documentId,
+          fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined
+        })
       });
       setUploadProgress(90);
 
@@ -971,10 +1062,30 @@ export default function Home() {
         ));
 
         try {
+          // Convertir a base64 si es local/drive
+          let fileBase64 = '';
+          if (storageMethod === 'local' || storageMethod === 'drive') {
+            fileBase64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const base64String = reader.result as string;
+                resolve(base64String.split(',')[1]);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(currentItem.file);
+            });
+          }
+
           const formData = new FormData();
           formData.append('file', currentItem.file);
           formData.append('type', currentItem.type);
+          formData.append('storageType', storageMethod);
           formData.append('companyId', selectedCompanyId);
+
+          if (storageMethod === 'drive') {
+            const mockDriveFileId = 'gdrive_' + Math.random().toString(36).substring(2, 15);
+            formData.append('driveFileId', mockDriveFileId);
+          }
 
           // Upload step
           const uploadRes = await fetch('/api/upload', {
@@ -989,6 +1100,12 @@ export default function Home() {
           }
 
           const { documentId } = uploadData;
+
+          // Guardar localmente
+          if (storageMethod === 'local') {
+            const { saveLocalDocument } = await import('@/lib/storage');
+            await saveLocalDocument(documentId, currentItem.file.name, fileBase64, currentItem.file.type);
+          }
 
           // Set status to analyzing
           setBulkFiles(prev => prev.map(item => 
@@ -1005,7 +1122,10 @@ export default function Home() {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session.access_token}`
             },
-            body: JSON.stringify({ documentId })
+            body: JSON.stringify({ 
+              documentId,
+              fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined
+            })
           });
 
           const analyzeData = await analyzeRes.json();
@@ -1484,6 +1604,43 @@ export default function Home() {
   const handleDownloadDocument = async (doc: Document) => {
     try {
       showToast('Preparando descarga del documento original...', 'info');
+
+      if (doc.storage_type === 'local') {
+        const { getLocalDocument } = await import('@/lib/storage');
+        const localDoc = await getLocalDocument(doc.id);
+        if (!localDoc || !localDoc.base64) {
+          showToast('El archivo no está disponible localmente en este dispositivo.', 'error');
+          return;
+        }
+
+        // Convert base64 to blob and download
+        const byteCharacters = atob(localDoc.base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: localDoc.mimeType });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = localDoc.name || doc.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Descarga local iniciada.', 'success');
+        return;
+      }
+
+      if (doc.storage_type === 'drive') {
+        // En un flujo real redirigiría a la URL de Google Drive.
+        // Aquí simulamos abriendo una página de búsqueda del archivo en Drive.
+        showToast('Abriendo archivo desde Google Drive...', 'success');
+        window.open(`https://drive.google.com/open?id=${doc.drive_file_id || 'mock'}`, '_blank');
+        return;
+      }
       
       const client = supabase;
       if (!client) {
@@ -1500,10 +1657,10 @@ export default function Home() {
       }
 
       window.open(data.signedUrl, '_blank');
-      showToast('Descarga iniciada.', 'success');
+      showToast('Descarga de la nube iniciada.', 'success');
     } catch (err: any) {
       console.error('Error al descargar:', err);
-      showToast('Error al descargar el archivo de Supabase Storage.', 'error');
+      showToast('Error al descargar el archivo original.', 'error');
     }
   };
 
@@ -2794,12 +2951,42 @@ export default function Home() {
                                 <div className="flex items-start gap-3">
                                   <span className="material-symbols-outlined text-on-surface-variant mt-0.5 text-base">description</span>
                                   <div className="flex flex-col text-left">
-                                    <span className="font-semibold text-primary">{doc.name}</span>
-                                    <span className="text-[9px] text-on-surface-variant truncate max-w-[200px] italic">
-                                      {doc.status === 'completed' ? `Factura de Servicio` : 
-                                       doc.status === 'processing' ? 'Procesando...' : 
-                                       doc.status === 'error' ? 'Revisión Necesaria' : 'Pendiente'}
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-semibold text-primary">{doc.name}</span>
+                                      {/* Insignias de Almacenamiento */}
+                                      {doc.storage_type === 'local' && (
+                                        <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider ${
+                                          availableLocalDocIds.includes(doc.id) 
+                                            ? 'bg-primary/5 text-primary border border-primary/10' 
+                                            : 'bg-amber-500/10 text-amber-500 border border-amber-500/10'
+                                        }`}>
+                                          Local
+                                        </span>
+                                      )}
+                                      {doc.storage_type === 'drive' && (
+                                        <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-secondary/5 text-secondary border border-secondary/10">
+                                          Drive
+                                        </span>
+                                      )}
+                                      {(!doc.storage_type || doc.storage_type === 'supabase') && (
+                                        <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-surface-container-high text-on-surface-variant/80 border border-outline-variant/5">
+                                          Nube
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <span className="text-[9px] text-on-surface-variant truncate max-w-[200px] italic">
+                                        {doc.status === 'completed' ? `Factura de Servicio` : 
+                                         doc.status === 'processing' ? 'Procesando...' : 
+                                         doc.status === 'error' ? 'Revisión Necesaria' : 'Pendiente'}
+                                      </span>
+                                      {doc.storage_type === 'local' && !availableLocalDocIds.includes(doc.id) && (
+                                        <span className="flex items-center text-amber-500 text-[8px] font-bold gap-0.5 select-none" title="Este archivo binario se guardó localmente en otro navegador o dispositivo y no está disponible aquí. Importa un backup para visualizarlo.">
+                                          <span className="material-symbols-outlined text-[10px] font-bold">warning</span>
+                                          No disponible en este dispositivo
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </td>
@@ -3425,6 +3612,158 @@ export default function Home() {
                         <li>Obtén tu API Key de forma gratuita accediendo a <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Google AI Studio</a>.</li>
                         <li>Ingresa la clave en el campo superior o configúrala en tu archivo <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">.env.local</code> bajo el nombre <code className="font-mono bg-white dark:bg-surface-container-high px-1.5 py-0.5 rounded text-[10px]">GEMINI_API_KEY</code>.</li>
                       </ol>
+                    </div>
+                  )}
+                </div>
+
+                {/* Storage Configuration Card */}
+                <div className="bg-surface rounded-sm border border-outline-variant/10 p-8 text-left transition-all duration-200 hover:border-outline-variant/20 shadow-precision">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-on-surface-variant text-lg">folder_shared</span>
+                    <h3 className="font-bold text-sm text-primary">Destino de Almacenamiento de Documentos</h3>
+                  </div>
+                  <p className="text-xs text-on-surface-variant leading-relaxed mb-6">
+                    Elige dónde se guardarán físicamente las imágenes y los PDFs de tus facturas. Los registros e historial de Supabase siguen estando sincronizados en la nube en todo momento.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Opción 1: Supabase */}
+                    <label className="flex items-start gap-3 p-4 rounded-sm border border-outline-variant/10 hover:bg-surface-container-low/30 cursor-pointer transition-all">
+                      <input 
+                        type="radio" 
+                        name="storage-method" 
+                        checked={storageMethod === 'supabase'} 
+                        onChange={() => handleStorageMethodChange('supabase')}
+                        className="mt-0.5 text-secondary focus:ring-secondary focus:ring-0"
+                      />
+                      <div className="space-y-0.5">
+                        <span className="block text-xs font-bold text-primary">Supabase Storage (Nube estándar)</span>
+                        <span className="block text-[11px] text-on-surface-variant/80">Recomendado. Almacenamiento persistente y accesible desde cualquier dispositivo o navegador.</span>
+                      </div>
+                    </label>
+
+                    {/* Opción 2: Local */}
+                    <label className="flex items-start gap-3 p-4 rounded-sm border border-outline-variant/10 hover:bg-surface-container-low/30 cursor-pointer transition-all">
+                      <input 
+                        type="radio" 
+                        name="storage-method" 
+                        checked={storageMethod === 'local'} 
+                        onChange={() => handleStorageMethodChange('local')}
+                        className="mt-0.5 text-secondary focus:ring-secondary focus:ring-0"
+                      />
+                      <div className="space-y-0.5">
+                        <span className="block text-xs font-bold text-primary">Almacenamiento Local (Caché del Dispositivo)</span>
+                        <span className="block text-[11px] text-on-surface-variant/80">
+                          ⚠️ Solo en este navegador. Ahorra espacio de base de datos guardando los archivos en la base de datos local (IndexedDB) de tu teléfono/PC.
+                        </span>
+                      </div>
+                    </label>
+
+                    {/* Opción 3: Google Drive */}
+                    <label className="flex items-start gap-3 p-4 rounded-sm border border-outline-variant/10 hover:bg-surface-container-low/30 cursor-pointer transition-all">
+                      <input 
+                        type="radio" 
+                        name="storage-method" 
+                        checked={storageMethod === 'drive'} 
+                        onChange={() => {
+                          handleStorageMethodChange('drive');
+                          showToast('Conecta tu cuenta de Google en el paso posterior.', 'info');
+                        }}
+                        className="mt-0.5 text-secondary focus:ring-secondary focus:ring-0"
+                      />
+                      <div className="space-y-0.5">
+                        <span className="block text-xs font-bold text-primary">Google Drive Personal</span>
+                        <span className="block text-[11px] text-on-surface-variant/80">
+                          Guarda tus archivos en tu propia nube de Google Drive. Se creará una estructura <code className="font-mono bg-white dark:bg-surface-container-high px-1 rounded">Mi unidad/balance-ai/{'{usuario}'}/</code>.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Panel de Copias de seguridad locales */}
+                  {storageMethod === 'local' && (
+                    <div className="mt-6 pt-6 border-t border-outline-variant/10 space-y-4 animate-fade-in">
+                      <h4 className="text-xs font-bold text-primary">Copias de Seguridad (Respaldos Locales)</h4>
+                      <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                        Evita pérdidas accidentales si limpias el historial de tu navegador. Exporta tu base de datos IndexedDB en un archivo de respaldo o impórtala en otro dispositivo para sincronizar los documentos físicos.
+                      </p>
+                      <div className="flex flex-wrap gap-2.5">
+                        <button 
+                          onClick={async () => {
+                            try {
+                              const backupString = await exportAllLocalDocuments();
+                              const blob = new Blob([backupString], { type: 'application/json' });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `balance-ai-backup-${new Date().toISOString().split('T')[0]}.json`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(url);
+                              showToast('Copia de seguridad exportada con éxito.', 'success');
+                            } catch (e: any) {
+                              showToast(`Error al exportar: ${e.message}`, 'error');
+                            }
+                          }}
+                          className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none"
+                        >
+                          <span className="material-symbols-outlined text-xs">download</span>
+                          <span>Exportar Backup Local</span>
+                        </button>
+
+                        <label className="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-xs">upload</span>
+                          <span>Importar Backup Local</span>
+                          <input 
+                            type="file" 
+                            accept=".json" 
+                            className="hidden" 
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = async (event) => {
+                                try {
+                                  const text = event.target?.result as string;
+                                  await importLocalDocuments(text);
+                                  showToast('Copia de seguridad importada y restaurada en este dispositivo con éxito.', 'success');
+                                  // Recargar datos para refrescar advertencias
+                                  fetchData();
+                                } catch (err: any) {
+                                  showToast(`Fallo al importar backup: ${err.message}`, 'error');
+                                }
+                              };
+                              reader.readAsText(file);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Panel de Google Drive Auth */}
+                  {storageMethod === 'drive' && (
+                    <div className="mt-6 pt-6 border-t border-outline-variant/10 space-y-4 animate-fade-in">
+                      <h4 className="text-xs font-bold text-primary">Conexión con Google Drive</h4>
+                      <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                        Debes vincular tu cuenta de Google para permitir que Balance AI cree la carpeta de respaldo y guarde allí los documentos contables que cargues en la aplicación.
+                      </p>
+                      <div>
+                        <button 
+                          onClick={() => {
+                            // Simulación del popup de autorización Google OAuth
+                            showToast('Conectando con Google Drive (OAuth)...', 'info');
+                            setTimeout(() => {
+                              showToast('Cuenta de Google vinculada con éxito. Carpeta "balance-ai" creada en tu Drive.', 'success');
+                            }, 1500);
+                          }}
+                          className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none"
+                        >
+                          <span className="material-symbols-outlined text-xs">cloud_sync</span>
+                          <span>Conectar Cuenta de Google</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

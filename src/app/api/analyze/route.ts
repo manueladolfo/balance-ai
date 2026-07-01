@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
     }
 
-    const { documentId } = await req.json();
+    const { documentId, fileBase64 } = await req.json();
 
     if (!documentId) {
       return NextResponse.json({ error: 'Falta el ID del documento.' }, { status: 400 });
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Download file bytes
+    // Download file bytes or use base64
     let fileBuffer: Buffer;
     let mimeType = 'application/pdf';
     if (docName.toLowerCase().endsWith('.jpg') || docName.toLowerCase().endsWith('.jpeg')) {
@@ -96,15 +96,19 @@ export async function POST(req: NextRequest) {
       mimeType = 'image/png';
     }
 
-    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-      .from('accounting-docs')
-      .download(storagePath);
+    if (fileBase64) {
+      fileBuffer = Buffer.from(fileBase64, 'base64');
+    } else {
+      const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+        .from('accounting-docs')
+        .download(storagePath);
 
-    if (downloadError || !fileData) {
-      throw new Error('Error al descargar el archivo de Supabase Storage para analizar.');
+      if (downloadError || !fileData) {
+        throw new Error('Error al descargar el archivo de Supabase Storage para analizar.');
+      }
+      const arrayBuffer = await fileData.arrayBuffer();
+      fileBuffer = Buffer.from(arrayBuffer);
     }
-    const arrayBuffer = await fileData.arrayBuffer();
-    fileBuffer = Buffer.from(arrayBuffer);
 
     // Call Gemini API
     const model = genAI.getGenerativeModel({
