@@ -1875,7 +1875,7 @@ export default function Home() {
                 value={lockPassword}
                 onChange={(e) => setLockPassword(e.target.value)}
                 required
-                className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-sm font-medium text-center focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
+                className="w-full bg-transparent border-b border-outline-variant/40 py-2.5 text-[16px] md:text-sm font-medium text-center focus:outline-none focus:border-primary transition-all placeholder:opacity-40"
                 placeholder="••••••••"
                 autoFocus
               />
@@ -1936,10 +1936,10 @@ export default function Home() {
       )}
 
       {/* SideNavBar */}
-      <aside className={`fixed left-0 top-0 h-full z-50 py-8 flex flex-col justify-between w-64 bg-surface-container-low border-r border-outline-variant/5 transition-transform duration-300 md:translate-x-0 ${
+      <aside className={`fixed left-0 top-0 h-full z-50 py-8 flex flex-col justify-between w-64 bg-surface-container-low border-r border-outline-variant/5 transition-transform duration-300 md:translate-x-0 overflow-y-auto max-h-screen custom-scrollbar ${
         isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="px-6">
+        <div className="px-6 shrink-0">
           {/* Logo & Brand Header - Centrado y Grande (x4), sin letras ni cajas pesadas */}
           <div className="flex justify-center mb-10 pt-4 select-none">
             <div className="flex items-center justify-center w-40 h-40 shrink-0">
@@ -1987,20 +1987,20 @@ export default function Home() {
           </nav>
 
           {/* Buscador en Mobile */}
-          <div className="block md:hidden relative items-center mt-6">
-            <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-sm pointer-events-none">search</span>
+          <div className="block md:hidden relative mt-6 px-4">
+            <span className="material-symbols-outlined absolute left-7 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm pointer-events-none">search</span>
             <input 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface border border-outline-variant/10 rounded-sm py-2 pl-8 pr-3 text-[16px] font-medium focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
+              className="w-full bg-surface border border-outline-variant/10 rounded-sm py-2 pl-9 pr-3 text-[16px] font-medium focus:outline-none focus:ring-1 focus:ring-secondary/30 focus:border-secondary transition-all" 
               placeholder="Buscar documentos..." 
               type="text"
             />
           </div>
 
           {/* Selector de empresa en Mobile */}
-          <div className="flex md:hidden flex-col gap-2 mt-4 p-3 bg-surface border border-outline-variant/10 rounded-sm">
-            <div className="flex items-center gap-1.5 select-none">
+          <div className="flex md:hidden flex-col gap-2 mt-4 mx-4 p-3 bg-surface border border-outline-variant/10 rounded-sm">
+            <div className="flex items-center gap-1.5 select-none justify-center">
               <span className="material-symbols-outlined text-[16px] text-on-surface-variant shrink-0">domain</span>
               <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Empresa Activa</span>
             </div>
@@ -2056,17 +2056,19 @@ export default function Home() {
             </div>
           </div>
 
-          <button 
-            onClick={() => { setActiveTab('documents'); setIsMobileSidebarOpen(false); }}
-            className="mt-8 w-full flex items-center justify-center gap-sm bg-primary text-white py-2.5 rounded-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px] text-white">add</span>
-            <span className="text-label-bold font-label-bold text-white uppercase tracking-wider text-xs">Nueva Entrada</span>
-          </button>
+          <div className="px-4">
+            <button 
+              onClick={() => { setActiveTab('documents'); setIsMobileSidebarOpen(false); }}
+              className="mt-8 w-full flex items-center justify-center gap-sm bg-primary text-white py-2.5 rounded-sm font-bold hover:opacity-90 active:scale-[0.98] transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px] text-white">add</span>
+              <span className="text-label-bold font-label-bold text-white uppercase tracking-wider text-xs">Nueva Entrada</span>
+            </button>
+          </div>
         </div>
 
         {/* Sidebar Footer */}
-        <div className="px-6 space-y-3">
+        <div className="px-6 space-y-3 shrink-0 mt-8">
           <div 
             onClick={() => { setIsHelpModalOpen(true); setIsMobileSidebarOpen(false); }}
             className="flex items-center gap-4 px-4 py-2.5 text-on-surface-variant hover:text-on-surface cursor-pointer rounded-sm hover:bg-surface-container-high transition-colors"
@@ -2483,9 +2485,9 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Fila de Filtros y Acciones - Más espaciada y limpia */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
-                <div className="flex flex-wrap items-center gap-3">
+              {/* Fila de Filtros y Acciones - Centrado y limpio en mobile */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 w-full sm:w-auto">
                   {/* Status Filter Dropdown */}
                   <div className="relative">
                     <button 
@@ -2649,11 +2651,11 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-                <div className="relative">
+                <div className="relative flex justify-center w-full sm:w-auto">
                   <button 
                     onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
                     disabled={selectedDocIds.length === 0}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-secondary text-white rounded-sm text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-1.5 bg-secondary text-white rounded-sm text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
                   >
                     <span className="material-symbols-outlined text-[14px] text-white">download_for_offline</span>
                     Exportar ContaPlus ({selectedDocIds.length})
@@ -2661,7 +2663,7 @@ export default function Home() {
                   </button>
 
                   {isExportDropdownOpen && selectedDocIds.length > 0 && (
-                    <div className="absolute right-0 mt-2 w-56 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-1 text-left">
+                    <div className="absolute right-0 mt-2 w-56 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-1 text-left left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0">
                       <button 
                         onClick={() => { handleExportContaplus('2008', 'txt'); setIsExportDropdownOpen(false); }}
                         className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
@@ -2820,48 +2822,48 @@ export default function Home() {
                 </div>
               </section>
 
-              {/* Gemini Chat Area - Reubicado abajo en horizontal de ancho completo */}
-              <div className="h-72 flex flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 select-none shadow-precision mt-4">
+              {/* Gemini Chat Area - Reubicado abajo en horizontal de ancho completo con optimización móvil */}
+              <div className="h-72 md:h-80 flex flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 select-none shadow-precision mt-4">
                 {/* Chat Header - Diseño integrado y minimalista */}
-                <div className="bg-surface-container-low px-6 py-3.5 flex items-center justify-between shrink-0 border-b border-outline-variant/10">
+                <div className="bg-surface-container-low px-4 md:px-6 py-3.5 flex items-center justify-between shrink-0 border-b border-outline-variant/10">
                   <div className="flex items-center gap-2 text-primary">
                     <span className="material-symbols-outlined text-secondary text-sm material-symbols-fill">auto_awesome</span>
                     <span className="font-bold text-xs text-primary">Chat con Gemini Intelligence</span>
                   </div>
                   {selectedDocIds.length > 0 && (
-                    <span className="bg-secondary/10 text-secondary px-2.5 py-1 rounded-sm text-[9px] font-bold tracking-wider animate-pulse">
+                    <span className="bg-secondary/10 text-secondary px-2 py-0.5 md:px-2.5 md:py-1 rounded-sm text-[8px] md:text-[9px] font-bold tracking-wider animate-pulse">
                       {selectedDocIds.length} DOC SELECCIONADO{selectedDocIds.length > 1 ? 'S' : ''}
                     </span>
                   )}
                 </div>
 
                 {/* Chat messages area */}
-                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-4 bg-surface-container-lowest/10">
+                <div className="flex-1 p-4 md:p-6 overflow-y-auto custom-scrollbar space-y-4 bg-surface-container-lowest/10">
                   {/* Mensaje de Bienvenida del Asistente */}
-                  <div className="flex gap-3 max-w-full">
+                  <div className="flex gap-2.5 md:gap-3 max-w-full">
                     <div className="w-6 h-6 rounded-sm bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary">
                       <span className="material-symbols-outlined text-xs material-symbols-fill text-primary">auto_awesome</span>
                     </div>
-                    <div className="flex flex-col text-left max-w-[90%]">
+                    <div className="flex flex-col text-left max-w-[92%] md:max-w-[90%]">
                       <span className="text-[8px] text-on-surface-variant font-bold uppercase tracking-wider mb-1">Gemini • 10:24 AM</span>
-                      <div className="p-3 px-4 bg-surface-container-low text-on-surface rounded-sm border border-outline-variant/5 text-xs leading-relaxed">
+                      <div className="p-3 px-3.5 bg-surface-container-low text-on-surface rounded-sm border border-outline-variant/5 text-xs leading-relaxed">
                         ¡Hola! He indexado tu libro mayor y PGC. Selecciona uno o más documentos de la tabla superior y pídeme que los sume, analice el IVA, extraiga discrepancias o categorice los gastos.
                       </div>
                     </div>
                   </div>
 
                   {chatMessages.slice(1).map((msg, index) => (
-                    <div key={index} className={`flex gap-3 max-w-full ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                    <div key={index} className={`flex gap-2.5 md:gap-3 max-w-full ${msg.sender === 'user' ? 'justify-end' : ''}`}>
                       {msg.sender === 'ai' && (
                         <div className="w-6 h-6 rounded-sm bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary">
                           <span className="material-symbols-outlined text-xs material-symbols-fill text-primary">auto_awesome</span>
                         </div>
                       )}
-                      <div className={`flex flex-col max-w-[90%] ${msg.sender === 'user' ? 'text-right items-end' : 'text-left'}`}>
+                      <div className={`flex flex-col max-w-[92%] md:max-w-[90%] ${msg.sender === 'user' ? 'text-right items-end' : 'text-left'}`}>
                         <span className="text-[8px] text-on-surface-variant font-bold uppercase tracking-wider mb-1">
                           {msg.sender === 'user' ? 'Tú • 10:25 AM' : 'Gemini • 10:26 AM'}
                         </span>
-                        <div className={`p-3 px-4 rounded-sm text-xs leading-relaxed border ${
+                        <div className={`p-3 px-3.5 rounded-sm text-xs leading-relaxed border ${
                           msg.sender === 'user' 
                             ? 'bg-primary-container/10 text-primary border-primary-container/10' 
                             : 'bg-surface-container-low text-on-surface border-outline-variant/5'
@@ -2873,11 +2875,11 @@ export default function Home() {
                   ))}
                   
                   {isChatLoading && (
-                    <div className="flex gap-3 max-w-full">
+                    <div className="flex gap-2.5 md:gap-3 max-w-full">
                       <div className="w-6 h-6 rounded-sm bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary">
                         <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
                       </div>
-                      <div className="bg-surface-container-low p-3 px-4 rounded-sm border border-outline-variant/5 text-xs text-on-surface-variant italic">
+                      <div className="bg-surface-container-low p-3 px-3.5 rounded-sm border border-outline-variant/5 text-xs text-on-surface-variant italic">
                         Gemini está procesando...
                       </div>
                     </div>
@@ -2886,11 +2888,11 @@ export default function Home() {
                 </div>
 
                 {/* Input area - Horizontal y de ancho completo abajo */}
-                <div className="p-4 px-6 bg-surface border-t border-outline-variant/10 shrink-0">
-                  <div className="border border-outline-variant/10 rounded-sm overflow-hidden flex items-center bg-surface-container-lowest px-4 py-3 focus-within:border-primary/50 transition-colors">
+                <div className="p-3 md:p-4 px-4 md:px-6 bg-surface border-t border-outline-variant/10 shrink-0">
+                  <div className="border border-outline-variant/10 rounded-sm overflow-hidden flex items-center bg-surface-container-lowest px-3 md:px-4 py-2 md:py-3 focus-within:border-primary/50 transition-colors">
                     <button 
                       onClick={() => showToast('Adjuntar archivos próximamente.', 'info')}
-                      className="flex items-center text-on-surface-variant hover:text-primary mr-3 focus:outline-none"
+                      className="flex items-center text-on-surface-variant hover:text-primary mr-2 md:mr-3 focus:outline-none"
                       title="Adjuntar archivo"
                     >
                       <span className="material-symbols-outlined text-base">attach_file</span>
@@ -2900,17 +2902,17 @@ export default function Home() {
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
                       disabled={isChatLoading}
-                      className="flex-1 bg-transparent py-3 text-[16px] md:text-sm focus:outline-none disabled:opacity-60 text-on-surface placeholder:text-on-surface-variant/60" 
+                      className="flex-1 bg-transparent py-2 md:py-3 text-[15px] md:text-sm focus:outline-none disabled:opacity-60 text-on-surface placeholder:text-on-surface-variant/60" 
                       placeholder={selectedDocIds.length > 0 
                         ? "Preguntar sobre filas seleccionadas..." 
-                        : "Escribe tu consulta al asistente contable..."
+                        : "Escribe tu consulta..."
                       } 
                       type="text"
                     />
                     <button 
                       onClick={handleSendMessage}
                       disabled={isChatLoading || !chatInput.trim()}
-                      className="w-10 h-10 flex items-center justify-center bg-secondary text-white rounded-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none ml-3 focus:outline-none"
+                      className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-secondary text-white rounded-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none ml-2 md:ml-3 focus:outline-none"
                     >
                       <span className="material-symbols-outlined text-sm text-white">send</span>
                     </button>
