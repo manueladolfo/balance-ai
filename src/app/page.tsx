@@ -135,6 +135,7 @@ export default function Home() {
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isSavingZaiKey, setIsSavingZaiKey] = useState(false);
   const [activeAiProvider, setActiveAiProvider] = useState<'gemini' | 'zai'>('gemini');
+  const [documentOcrMode, setDocumentOcrMode] = useState<'hybrid' | 'multimodal' | 'local_free'>('hybrid');
 
   // Estados del selector de usuario y pantalla de bloqueo
   const [usersList] = useState([
@@ -193,6 +194,11 @@ export default function Home() {
       const savedProvider = localStorage.getItem('balance_ai_provider') as any;
       if (savedProvider && ['gemini', 'zai'].includes(savedProvider)) {
         setActiveAiProvider(savedProvider);
+      }
+      
+      const savedOcrMode = localStorage.getItem('balance_ai_ocr_mode') as any;
+      if (savedOcrMode && ['hybrid', 'multimodal', 'local_free'].includes(savedOcrMode)) {
+        setDocumentOcrMode(savedOcrMode);
       }
     }
   }, []);
@@ -1071,7 +1077,8 @@ export default function Home() {
         body: JSON.stringify({ 
           documentId,
           fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined,
-          provider: activeAiProvider
+          provider: activeAiProvider,
+          ocrMode: documentOcrMode
         })
       });
       setUploadProgress(90);
@@ -1283,7 +1290,8 @@ export default function Home() {
             body: JSON.stringify({ 
               documentId,
               fileBase64: (storageMethod === 'local' || storageMethod === 'drive') ? fileBase64 : undefined,
-              provider: activeAiProvider
+              provider: activeAiProvider,
+              ocrMode: documentOcrMode
             })
           });
 
@@ -4039,6 +4047,90 @@ export default function Home() {
                         }`}
                       >
                         Z.ai (GLM 5.2)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OCR Mode Selector Card */}
+                <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 text-left transition-all duration-200 shadow-precision">
+                  <div>
+                    <h3 className="font-bold text-sm text-primary flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-secondary">document_scanner</span>
+                      <span>Motor de Lectura de Documentos (OCR)</span>
+                    </h3>
+                    <p className="text-xs text-on-surface-variant/80 mb-4">
+                      Define cómo se extraerán los datos y el texto de tus documentos e imágenes antes de enviarlos a la IA.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <button
+                        onClick={() => {
+                          setDocumentOcrMode('hybrid');
+                          localStorage.setItem('balance_ai_ocr_mode', 'hybrid');
+                          showToast('Motor de lectura cambiado a Automático/Híbrido.', 'info');
+                        }}
+                        className={`flex flex-col items-start p-4 rounded-sm border transition-all text-left focus:outline-none cursor-pointer ${
+                          documentOcrMode === 'hybrid'
+                            ? 'bg-secondary/5 border-secondary/40 text-on-surface'
+                            : 'bg-surface-container-low border-outline-variant/10 hover:border-outline-variant/30 text-on-surface/80'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`material-symbols-outlined text-sm ${documentOcrMode === 'hybrid' ? 'text-secondary font-bold' : 'text-on-surface-variant/60'}`}>
+                            {documentOcrMode === 'hybrid' ? 'radio_button_checked' : 'radio_button_unchecked'}
+                          </span>
+                          <span className="font-bold text-xs">Automático (Híbrido)</span>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant leading-relaxed">
+                          Extrae texto digital localmente en PDF. Usa Google Cloud Vision para fotos y escaneados de alta precisión.
+                        </p>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setDocumentOcrMode('multimodal');
+                          localStorage.setItem('balance_ai_ocr_mode', 'multimodal');
+                          showToast('Motor de lectura cambiado a Visión Directa (IA Multimodal).', 'info');
+                        }}
+                        className={`flex flex-col items-start p-4 rounded-sm border transition-all text-left focus:outline-none cursor-pointer ${
+                          documentOcrMode === 'multimodal'
+                            ? 'bg-secondary/5 border-secondary/40 text-on-surface'
+                            : 'bg-surface-container-low border-outline-variant/10 hover:border-outline-variant/30 text-on-surface/80'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`material-symbols-outlined text-sm ${documentOcrMode === 'multimodal' ? 'text-secondary font-bold' : 'text-on-surface-variant/60'}`}>
+                            {documentOcrMode === 'multimodal' ? 'radio_button_checked' : 'radio_button_unchecked'}
+                          </span>
+                          <span className="font-bold text-xs">Visión Directa</span>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant leading-relaxed">
+                          Envía el archivo base64 completo a la IA. Requiere que la IA activa tenga soporte visual (ej. Gemini).
+                        </p>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setDocumentOcrMode('local_free');
+                          localStorage.setItem('balance_ai_ocr_mode', 'local_free');
+                          showToast('Motor de lectura cambiado a Local Gratuito.', 'info');
+                        }}
+                        className={`flex flex-col items-start p-4 rounded-sm border transition-all text-left focus:outline-none cursor-pointer ${
+                          documentOcrMode === 'local_free'
+                            ? 'bg-secondary/5 border-secondary/40 text-on-surface'
+                            : 'bg-surface-container-low border-outline-variant/10 hover:border-outline-variant/30 text-on-surface/80'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`material-symbols-outlined text-sm ${documentOcrMode === 'local_free' ? 'text-secondary font-bold' : 'text-on-surface-variant/60'}`}>
+                            {documentOcrMode === 'local_free' ? 'radio_button_checked' : 'radio_button_unchecked'}
+                          </span>
+                          <span className="font-bold text-xs">Local Gratuito</span>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant leading-relaxed">
+                          Extrae texto digital en PDF. Utiliza Tesseract.js de forma 100% local y gratuita para fotos.
+                        </p>
                       </button>
                     </div>
                   </div>

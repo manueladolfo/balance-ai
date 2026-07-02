@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { getUserIdFromRequest } from '@/lib/auth';
+import { 
+  extractTextFromPdf, 
+  extractTextWithTesseract, 
+  extractTextWithGoogleVision, 
+  extractTextFromPdfWithGoogleVision, 
+  extractTextWithGemini 
+} from '@/lib/extractor';
 
 // Initialize Gemini client if API key is provided
 const geminiApiKey = process.env.GEMINI_API_KEY || '';
@@ -17,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
     }
 
-    const { documentId, fileBase64, provider } = await req.json();
+    const { documentId, fileBase64, provider, ocrMode } = await req.json();
 
     if (!documentId) {
       return NextResponse.json({ error: 'Falta el ID del documento.' }, { status: 400 });
@@ -170,10 +177,44 @@ ${linesStr}`;
       fileBuffer = Buffer.from(arrayBuffer);
     }
 
+    // 2. Extraer texto según el ocrMode si no es 'multimodal'
+    let extractedText = '';
+    const activeOcrMode = ocrMode || 'hybrid';
+
+    if (activeOcrMode === 'hybrid') {
+      if (mimeType === 'application/pdf') {
+        // Primero intentar extracción digital local
+        extractedText = await extractTextFromPdf(fileBuffer);
+        // Si no se extrae casi nada, es un PDF escaneado
+        if (extractedText.trim().length < 50) {
+          const googleApiKey = process.env.GOOGLE_CLOUD_API_KEY;
+          if (googleApiKey) {
+            extractedText = await extractTextFromPdfWithGoogleVision(fileBuffer, googleApiKey);
+          } else if (geminiApiKey) {
+            extractedText = await extractTextWithGemini(fileBuffer, mimeType, geminiApiKey);
+          }
+        }
+      } else {
+        // Imagen: intentar Google Vision, y si no hay API Key, usar Gemini OCR
+        const googleApiKey = process.env.GOOGLE_CLOUD_API_KEY;
+        if (googleApiKey) {
+          extractedText = await extractTextWithGoogleVision(fileBuffer, googleApiKey);
+        } else if (geminiApiKey) {
+          extractedText = await extractTextWithGemini(fileBuffer, mimeType, geminiApiKey);
+        }
+      }
+    } else if (activeOcrMode === 'local_free') {
+      if (mimeType === 'application/pdf') {
+        extractedText = await extractTextFromPdf(fileBuffer);
+      } else {
+        extractedText = await extractTextWithTesseract(fileBuffer);
+      }
+    }
+
     // Call AI API (Gemini or Z.ai)
     let text = '';
     const base64File = fileBuffer.toString('base64');
-    const prompt = `Eres un experto contable español. Analiza el documento adjunto (${docType}) y realiza el asiento contable completo.
+    const prompt = `Eres un experto contable español. Analiza el ${extractedText ? 'texto' : 'documento'} adjunto (${docType}) y realiza el asiento contable completo.
 Usa las siguientes subcuentas del Plan General de Contabilidad (PGC) del usuario si son adecuadas, o propone cuentas del PGC estándar español de PYMES (como 628 para suministros, 629 para gastos de viaje/diversos, 472 para IVA soportado, 400 para proveedores, 410 para acreedores, 570/572 para caja/bancos, etc.).
 
 Cuentas y subcuentas del usuario:
@@ -212,33 +253,46 @@ El esquema JSON debe ser exactamente:
 }`;
 
     if (isZai) {
-      // Call Z.ai API (GLM-4V-Plus visual model)
-      const fileDataUrl = `data:${mimeType};base64,${base64File}`;
+      // Si tenemos texto extraído, usamos el modelo de texto glm-5.2 sin necesidad de visión
+      const zaiRequestBody: any = {
+        response_format: { type: 'json_object' },
+        temperature: 0.1
+      };
+
+      if (extractedText) {
+        zaiRequestBody.model = 'glm-5.2';
+        zaiRequestBody.messages = [
+          {
+            role: 'user',
+            content: `${prompt}\n\nCONTENIDO EXTRAÍDO DEL DOCUMENTO:\n---\n${extractedText}\n---`
+          }
+        ];
+      } else {
+        const fileDataUrl = `data:${mimeType};base64,${base64File}`;
+        zaiRequestBody.model = 'glm-4v-flash';
+        zaiRequestBody.messages = [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: fileDataUrl
+                }
+              }
+            ]
+          }
+        ];
+      }
+
       const zaiRes = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${zaiApiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: 'glm-4v-flash',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: fileDataUrl
-                  }
-                }
-              ]
-            }
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.1
-        })
+        body: JSON.stringify(zaiRequestBody)
       });
 
       if (!zaiRes.ok) {
@@ -291,17 +345,21 @@ El esquema JSON debe ser exactamente:
         }
       });
 
-      const parts = [
-        {
-          inlineData: {
-            data: base64File,
-            mimeType: mimeType
-          }
-        },
-        { text: prompt }
-      ];
-
-      const response = await model.generateContent(parts);
+      let response;
+      if (extractedText) {
+        response = await model.generateContent(`${prompt}\n\nCONTENIDO EXTRAÍDO DEL DOCUMENTO:\n---\n${extractedText}\n---`);
+      } else {
+        const parts = [
+          {
+            inlineData: {
+              data: base64File,
+              mimeType: mimeType
+            }
+          },
+          { text: prompt }
+        ];
+        response = await model.generateContent(parts);
+      }
       text = response.response.text();
     }
 
