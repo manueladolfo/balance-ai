@@ -166,7 +166,9 @@ export default function Home() {
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [isDocTypeDropdownOpen, setIsDocTypeDropdownOpen] = useState(false);
-
+  const [docTypeFilter, setDocTypeFilter] = useState<string>('all');
+  const [isDocTypeFilterDropdownOpen, setIsDocTypeFilterDropdownOpen] = useState(false);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   // Notifications/Toasts
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -3323,7 +3325,8 @@ export default function Home() {
                       </button>
                     </div>
                   ) : (
-                    <table className="w-full text-left zebra-table border-collapse">
+                    <>
+                    <table className="hidden md:table w-full text-left zebra-table border-collapse">
                       <thead className="sticky top-0 bg-surface z-10">
                         <tr className="border-b border-outline-variant/5">
                           <th className="py-3 px-6 w-10">
@@ -3462,12 +3465,162 @@ export default function Home() {
                         })}
                       </tbody>
                     </table>
+
+                    {/* Listado de Tarjetas Premium en Vista Móvil */}
+                    <div className="block md:hidden space-y-3 p-4">
+                      {filteredDocs.map((doc) => {
+                        const entry = entries.find(e => e.document_id === doc.id);
+                        const amount = entry 
+                          ? entry.lines.filter(l => l.line_type === 'debe').reduce((sum, l) => sum + l.amount, 0)
+                          : 0;
+
+                        const { type: displayType } = getDocumentDisplayInfo(doc);
+
+                        // Choose a color and icon based on displayType
+                        let badgeColor = 'bg-primary/10 text-primary border-primary/20';
+                        
+                        if (displayType.includes('proveedor')) {
+                          badgeColor = 'bg-error/10 text-error border-error/20';
+                        } else if (displayType.includes('cliente')) {
+                          badgeColor = 'bg-success/10 text-success border-success/20';
+                        } else if (displayType.includes('bancario') || displayType.includes('Extracto')) {
+                          badgeColor = 'bg-secondary/10 text-secondary border-secondary/20';
+                        } else if (displayType.includes('Nómina') || displayType.includes('Nomina')) {
+                          badgeColor = 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+                        } else if (displayType.includes('impuestos')) {
+                          badgeColor = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+                        }
+
+                        // Storage Type Icon
+                        let storageIcon = 'cloud';
+                        if (doc.storage_type === 'local') {
+                          storageIcon = 'phone_android';
+                        } else if (doc.storage_type === 'drive') {
+                          storageIcon = 'add_to_drive';
+                        }
+
+                        return (
+                          <div key={doc.id} className="bg-surface p-4 rounded-sm border border-outline-variant/10 flex flex-col gap-3 shadow-precision hover:border-outline-variant/30 transition-all select-none">
+                            
+                            {/* Top Row: Checkbox, Name, Status */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <input 
+                                  type="checkbox"
+                                  checked={selectedDocIds.includes(doc.id)}
+                                  onChange={() => handleSelectRow(doc.id)}
+                                  className="row-selector rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-4 w-4 shrink-0"
+                                />
+                                <div className="flex flex-col text-left min-w-0">
+                                  <span className="font-semibold text-primary text-xs truncate">{doc.name}</span>
+                                  <span className="text-[9px] text-on-surface-variant font-medium mt-0.5">Ref: {entry?.reference || 'Sin Ref'}</span>
+                                </div>
+                              </div>
+                              
+                              {/* Status Badge */}
+                              {doc.status === 'completed' && (
+                                <span className="flex items-center gap-1 bg-[#006d37]/10 text-[#006d37] px-2 py-0.5 rounded-full text-[9px] font-bold border border-[#006d37]/20">
+                                  <span className="w-1 h-1 rounded-full bg-[#006d37]" />
+                                  Listo
+                                </span>
+                              )}
+                              {doc.status === 'processing' && (
+                                <span className="flex items-center gap-1 bg-warning/10 text-warning px-2 py-0.5 rounded-full text-[9px] font-bold border border-warning/20 animate-pulse">
+                                  <span className="w-1 h-1 rounded-full bg-warning" />
+                                  Leyendo
+                                </span>
+                              )}
+                              {doc.status === 'pending' && (
+                                <span className="flex items-center gap-1 bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded-full text-[9px] font-bold border border-outline-variant/20">
+                                  <span className="w-1 h-1 rounded-full bg-on-surface-variant/40" />
+                                  En cola
+                                </span>
+                              )}
+                              {doc.status === 'error' && (
+                                <span className="flex items-center gap-1 bg-error/10 text-error px-2 py-0.5 rounded-full text-[9px] font-bold border border-error/20">
+                                  <span className="w-1 h-1 rounded-full bg-error" />
+                                  Error
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Middle Row: Details, Storage, Amount */}
+                            <div className="flex items-center justify-between border-t border-outline-variant/5 pt-2 text-[10px] text-on-surface-variant">
+                              <div className="flex flex-col text-left gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`px-1.5 py-0.5 rounded-sm border text-[8px] font-bold uppercase tracking-wider ${badgeColor}`}>
+                                    {displayType}
+                                  </span>
+                                  <div className="flex items-center gap-1 opacity-70">
+                                    <span className="material-symbols-outlined text-[10px]">{storageIcon}</span>
+                                    <span className="capitalize text-[9px] font-semibold">{doc.storage_type || 'local'}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[9px] font-mono text-on-surface-variant/70 mt-1">
+                                  {new Date(doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </span>
+                              </div>
+                              
+                              {/* Total Invoiced Amount */}
+                              <div className="text-right">
+                                <span className="text-sm font-bold font-mono-data text-primary">
+                                  {amount > 0 ? `€${amount.toFixed(2)}` : '€0.00'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Bottom Row: Actions */}
+                            <div className="flex items-center justify-end gap-2 border-t border-outline-variant/5 pt-2">
+                              {entry && (
+                                <button
+                                  onClick={() => setActiveEntryForModal(entry)}
+                                  className="flex items-center gap-1 px-3 py-1 bg-primary/5 hover:bg-primary/10 text-primary border border-primary/15 rounded-sm text-[10px] font-bold transition-all focus:outline-none"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">visibility</span>
+                                  <span>Ver Asiento</span>
+                                </button>
+                              )}
+                              
+                              {doc.storage_type !== 'local' && doc.storage_type !== 'drive' && (
+                                <button
+                                  onClick={() => handleDownloadDocument(doc)}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-surface border border-outline-variant/15 hover:border-outline-variant/30 text-on-surface-variant rounded-sm text-[10px] font-bold transition-all focus:outline-none"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                  <span>PDF</span>
+                                </button>
+                              )}
+
+                              {doc.storage_type === 'drive' && (
+                                <button
+                                  onClick={() => window.open(`https://drive.google.com/open?id=${doc.drive_file_id || 'mock'}`, '_blank')}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-surface border border-outline-variant/15 hover:border-outline-variant/30 text-on-surface-variant rounded-sm text-[10px] font-bold transition-all focus:outline-none"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">add_to_drive</span>
+                                  <span>Drive</span>
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => handleDownloadDocument(doc)}
+                                className="p-1 border border-outline-variant/15 hover:border-outline-variant/30 text-on-surface-variant rounded-sm transition-all focus:outline-none flex items-center justify-center"
+                                title="Descargar Original"
+                              >
+                                <span className="material-symbols-outlined text-[12px]">download</span>
+                              </button>
+                            </div>
+
+                          </div>
+                        );
+                      })}
+                    </div>
+                    </>
                   )}
                 </div>
               </section>
 
               {/* Gemini Chat Area - Reubicado abajo en horizontal de ancho completo con optimización móvil */}
-              <div className="h-80 md:h-[380px] flex flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 shadow-precision mt-4">
+              <div className="hidden md:flex h-80 md:h-[380px] flex-col bg-surface border border-outline-variant/10 rounded-sm overflow-hidden shrink-0 shadow-precision mt-4">
                 {/* Chat Header - Diseño integrado y minimalista */}
                 <div className="bg-surface-container-low px-4 md:px-6 py-3.5 flex items-center justify-between shrink-0 border-b border-outline-variant/10">
                   <div className="flex items-center gap-2 text-primary">
@@ -3581,8 +3734,130 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-
               </div>
+
+              {/* Botón Flotante de Chat para Móviles */}
+              <div className="block md:hidden fixed bottom-20 right-6 z-40">
+                <button 
+                  onClick={() => setIsMobileChatOpen(true)}
+                  className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg active:scale-95 transition-all focus:outline-none"
+                >
+                  <span className="material-symbols-outlined text-xl text-white">chat</span>
+                </button>
+              </div>
+
+              {/* Chat Flotante / Drawer para Móviles */}
+              {isMobileChatOpen && (
+                <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in slide-in-from-bottom duration-300">
+                  {/* Header */}
+                  <div className="bg-surface-container-low px-6 py-4 flex justify-between items-center border-b border-outline-variant/10 shrink-0 select-none">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-base">chat</span>
+                      <span className="font-bold text-xs text-primary">Chat con Gemini Intelligence</span>
+                    </div>
+                    <button 
+                      onClick={() => setIsMobileChatOpen(false)}
+                      className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-on-surface active:scale-95 transition-all focus:outline-none"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+                  
+                  {/* Chat messages area */}
+                  <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 custom-scrollbar bg-surface-container-lowest/10">
+                    {/* Welcome Message */}
+                    <div className="flex gap-2.5 max-w-full">
+                      <div className="w-6 h-6 rounded-sm bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-xs material-symbols-fill text-primary">auto_awesome</span>
+                      </div>
+                      <div className="flex flex-col text-left max-w-[92%]">
+                        <span className="text-[8px] text-on-surface-variant font-bold uppercase tracking-wider mb-1">Gemini</span>
+                        <div className="p-3 bg-surface text-on-surface rounded-sm border border-outline-variant/5 text-xs leading-relaxed">
+                          ¡Hola! Selecciona uno o más documentos de la pantalla principal y pídeme que los sume, analice el IVA, extraiga discrepancias o categorice los gastos.
+                        </div>
+                      </div>
+                    </div>
+
+                    {chatMessages.slice(1).map((msg, idx) => (
+                      <div key={idx} className={`flex gap-2.5 max-w-full ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                        {msg.sender !== 'user' && (
+                          <div className="w-6 h-6 rounded-sm bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary">
+                            <span className="material-symbols-outlined text-xs material-symbols-fill text-primary">auto_awesome</span>
+                          </div>
+                        )}
+                        <div className="flex flex-col text-left max-w-[92%]">
+                          <span className="text-[8px] text-on-surface-variant font-bold uppercase tracking-wider mb-1">
+                            {msg.sender === 'user' ? 'Tú' : 'Gemini'}
+                          </span>
+                          <div className={`p-3 rounded-sm text-xs leading-relaxed ${
+                            msg.sender === 'user' 
+                              ? 'bg-secondary text-white border border-secondary' 
+                              : 'bg-surface text-on-surface border border-outline-variant/5'
+                          }`}>
+                            {msg.text}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {isChatLoading && (
+                      <div className="flex gap-2.5 max-w-full animate-pulse">
+                        <div className="w-6 h-6 rounded-sm bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary">
+                          <span className="animate-spin material-symbols-outlined text-xs">progress_activity</span>
+                        </div>
+                        <div className="flex flex-col text-left max-w-[92%]">
+                          <span className="text-[8px] text-on-surface-variant font-bold uppercase tracking-wider mb-1">Gemini</span>
+                          <div className="p-3 bg-surface text-on-surface-variant rounded-sm border border-outline-variant/5 text-xs">
+                            Escribiendo respuesta...
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatStreamEndRef} />
+                  </div>
+                  
+                  {/* Input area */}
+                  <div className="bg-surface border-t border-outline-variant/10 p-4 shrink-0 space-y-2 text-left">
+                    {chatAttachedFile && (
+                      <div className="flex items-center justify-between bg-secondary/5 border border-secondary/15 px-3 py-1.5 rounded-sm text-[10px] text-secondary font-semibold">
+                        <span className="truncate max-w-[200px]">{chatAttachedFile.name}</span>
+                        <button onClick={() => setChatAttachedFile(null)} className="material-symbols-outlined text-xs hover:text-error transition-colors focus:outline-none">close</button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input 
+                        type="file" 
+                        ref={chatFileInputRef} 
+                        onChange={handleChatFileChange} 
+                        className="hidden" 
+                        accept="image/*,application/pdf"
+                      />
+                      <button 
+                        onClick={() => chatFileInputRef.current?.click()}
+                        disabled={isChatLoading}
+                        className="w-9 h-9 rounded-sm border border-outline-variant/15 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors shrink-0 disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">attach_file</span>
+                      </button>
+                      <input 
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder="Pregunta sobre sumas, IVA o descuadres..."
+                        disabled={isChatLoading}
+                        className="flex-1 bg-surface-container-low border border-outline-variant/15 rounded-sm px-3 text-xs text-primary focus:outline-none focus:border-primary transition-all disabled:opacity-50"
+                      />
+                      <button 
+                        onClick={handleSendMessage}
+                        disabled={isChatLoading || (!chatInput.trim() && !chatAttachedFile)}
+                        className="w-9 h-9 bg-primary text-white rounded-sm flex items-center justify-center shadow-precision hover:opacity-95 active:scale-95 transition-all shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-white">send</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
           )}
