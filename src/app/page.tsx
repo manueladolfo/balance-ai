@@ -2047,16 +2047,43 @@ export default function Home() {
     }
   };
 
-  const handleUnlock = (e: React.FormEvent) => {
+  const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Si la contraseña es la de desarrollo por defecto (fallback)
     if (lockPassword === 'password123') {
       setIsLocked(false);
       setLockPassword('');
       setLockError('');
       showToast('Sesión restaurada correctamente.', 'success');
-    } else {
-      setLockError('Contraseña incorrecta. Inténtalo de nuevo.');
-      showToast('Contraseña de desbloqueo incorrecta.', 'error');
+      return;
+    }
+
+    const client = supabase;
+    if (!client || !activeUser || !activeUser.email) {
+      setLockError('Error de conexión o sesión de usuario no válida.');
+      return;
+    }
+
+    try {
+      // Validar las credenciales intentando iniciar sesión de nuevo en Supabase
+      const { error } = await client.auth.signInWithPassword({
+        email: activeUser.email,
+        password: lockPassword
+      });
+
+      if (error) {
+        setLockError('Contraseña incorrecta. Inténtalo de nuevo.');
+        showToast('Contraseña de desbloqueo incorrecta.', 'error');
+      } else {
+        setIsLocked(false);
+        setLockPassword('');
+        setLockError('');
+        showToast('Sesión restaurada correctamente.', 'success');
+      }
+    } catch (err) {
+      setLockError('Error al validar tu contraseña.');
+      showToast('Error de autenticación.', 'error');
     }
   };
 
