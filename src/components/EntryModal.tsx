@@ -44,7 +44,16 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedDate, setEditedDate] = useState(entry.entry_date);
   const [editedReference, setEditedReference] = useState(entry.reference);
-  const [editedType, setEditedType] = useState(document?.type || 'Factura');
+  // Obtener el tipo original (categoría) del prefijo de ia_description
+  const getInitialType = () => {
+    if (document?.ia_description) {
+      const match = document.ia_description.match(/^\[(.*?)\]/);
+      if (match) return match[1];
+    }
+    return document?.type || 'Factura proveedor';
+  };
+
+  const [editedType, setEditedType] = useState(getInitialType());
   const [editedLines, setEditedLines] = useState<EntryLine[]>(entry.lines);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -419,13 +428,18 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                   <select
                     value={editedType}
                     onChange={(e) => setEditedType(e.target.value)}
-                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer max-w-[150px] md:max-w-none truncate"
                   >
-                    <option value="Factura">Factura</option>
-                    <option value="Recibo">Recibo</option>
-                    <option value="Ticket">Ticket</option>
-                    <option value="Extracto">Extracto</option>
-                    <option value="Otro">Otro</option>
+                    <option value="Factura proveedor">Factura Proveedor</option>
+                    <option value="Facturas cliente">Factura Cliente</option>
+                    <option value="Tickets simplificados">Ticket / Simplificado</option>
+                    <option value="Extractos bancarios">Extracto Bancario</option>
+                    <option value="Recibos">Recibo / Justificante</option>
+                    <option value="Nominas">Nómina</option>
+                    <option value="Seguros sociales">Seguros Sociales</option>
+                    <option value="Liquidación de impuestos">Liquidación Impuestos</option>
+                    <option value="Escrituras-contratos">Escritura / Contrato</option>
+                    <option value="Otros">Otros / Varios</option>
                   </select>
                 </div>
               </div>

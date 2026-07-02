@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     // 1. Verificar existencia y pertenencia del documento a través de la compañía
     const { data: document, error: docError } = await supabaseAdmin
       .from('documents')
-      .select('id, company_id')
+      .select('id, company_id, ia_description')
       .eq('id', documentId)
       .maybeSingle();
 
@@ -42,10 +42,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado para modificar documentos de esta empresa.' }, { status: 403 });
     }
 
+    // Map user-facing categories to standard DB types to satisfy DB constraints
+    let dbType: 'Factura' | 'Recibo' | 'Ticket' | 'Extracto' | 'Otro' = 'Otro';
+    if (type === 'Facturas cliente' || type === 'Factura proveedor' || type === 'Factura') {
+      dbType = 'Factura';
+    } else if (type === 'Recibos' || type === 'Recibo') {
+      dbType = 'Recibo';
+    } else if (type === 'Tickets simplificados' || type === 'Ticket') {
+      dbType = 'Ticket';
+    } else if (type === 'Extractos bancarios' || type === 'Extracto') {
+      dbType = 'Extracto';
+    } else {
+      dbType = 'Otro';
+    }
+
+    // Update prefix in ia_description to preserve original user-facing category
+    let updatedIaDesc = document.ia_description || '';
+    if (updatedIaDesc.startsWith('[')) {
+      updatedIaDesc = updatedIaDesc.replace(/^\[.*?\]/, `[${type}]`);
+    } else {
+      updatedIaDesc = `[${type}] ${updatedIaDesc}`.trim();
+    }
+
     // 2. Actualizar el tipo de documento en la tabla documents
     const { error: updateDocError } = await supabaseAdmin
       .from('documents')
-      .update({ type })
+      .update({ 
+        type: dbType,
+        ia_description: updatedIaDesc
+      })
       .eq('id', documentId);
 
     if (updateDocError) {
