@@ -3201,206 +3201,92 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Fila de Filtros y Acciones - Centrado y limpio en mobile */}
+              {/* Fila de Filtros y Acciones - Pills unificadas Desktop/Tablet */}
               <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 w-full sm:w-auto">
-                  {/* Status Filter Dropdown */}
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  {/* ── PILL Fecha (Desktop) ── */}
                   <div className="relative">
-                    <button 
-                      onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-                      className={`flex items-center gap-2 px-4 py-1.5 border rounded-sm text-xs font-semibold transition-all focus:outline-none focus:ring-0 ${
-                        statusFilter !== 'all' 
-                          ? 'bg-secondary/10 border-secondary/30 text-secondary' 
-                          : 'border-outline-variant/10 text-on-surface hover:bg-surface-container-low'
+                    <button
+                      onClick={() => { setIsDateDropdownOpen(!isDateDropdownOpen); setIsFilterDropdownOpen(false); setIsDocTypeFilterDropdownOpen(false); }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                        dateFilter !== 'all'
+                          ? 'bg-primary text-white border-primary shadow-sm'
+                          : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[14px]">filter_list</span>
-                      {statusFilter === 'all' && 'Filtros'}
-                      {statusFilter === 'pending' && 'Pendientes'}
-                      {statusFilter === 'processing' && 'Procesando'}
-                      {statusFilter === 'completed' && 'Procesados'}
-                      {statusFilter === 'error' && 'Errores'}
-                      <span className="material-symbols-outlined text-[12px] ml-0.5">expand_more</span>
+                      <span className="material-symbols-outlined text-[13px]">calendar_month</span>
+                      {dateFilter === 'all' && 'Fecha'}
+                      {dateFilter === '30days' && 'Últ. 30 días'}
+                      {dateFilter === '60days' && 'Últ. 60 días'}
+                      {dateFilter === '90days' && 'Últ. 90 días'}
+                      {dateFilter === 'custom' && 'Personalizado'}
+                      {dateFilter !== 'all' && (
+                        <span onClick={(e) => { e.stopPropagation(); setDateFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80">close</span>
+                      )}
+                      {dateFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
                     </button>
-
-                    {isFilterDropdownOpen && (
-                      <div className="absolute left-0 mt-2 w-44 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-1 text-left">
-                        <button 
-                          onClick={() => { setStatusFilter('all'); setIsFilterDropdownOpen(false); }}
-                          className={`w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left flex items-center justify-between ${statusFilter === 'all' ? 'font-bold bg-surface-container-low' : ''}`}
-                        >
-                          <span>Todos</span>
-                        </button>
-                        <button 
-                          onClick={() => { setStatusFilter('completed'); setIsFilterDropdownOpen(false); }}
-                          className={`w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left flex items-center justify-between ${statusFilter === 'completed' ? 'font-bold bg-surface-container-low' : ''}`}
-                        >
-                          <span>Procesados</span>
-                        </button>
-                        <button 
-                          onClick={() => { setStatusFilter('pending'); setIsFilterDropdownOpen(false); }}
-                          className={`w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left flex items-center justify-between ${statusFilter === 'pending' ? 'font-bold bg-surface-container-low' : ''}`}
-                        >
-                          <span>Pendientes</span>
-                        </button>
-                        <button 
-                          onClick={() => { setStatusFilter('processing'); setIsFilterDropdownOpen(false); }}
-                          className={`w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left flex items-center justify-between ${statusFilter === 'processing' ? 'font-bold bg-surface-container-low' : ''}`}
-                        >
-                          <span>Procesando</span>
-                        </button>
-                        <button 
-                          onClick={() => { setStatusFilter('error'); setIsFilterDropdownOpen(false); }}
-                          className={`w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left flex items-center justify-between ${statusFilter === 'error' ? 'font-bold bg-surface-container-low' : ''}`}
-                        >
-                          <span>Errores</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Date Filter Dropdown */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-                      className={`flex items-center gap-2 px-4 py-1.5 border rounded-sm text-xs font-semibold transition-all focus:outline-none focus:ring-0 ${
-                        dateFilter !== 'all' 
-                          ? 'bg-primary/5 border-primary/20 text-primary font-bold' 
-                          : 'border-outline-variant/10 text-on-surface hover:bg-surface-container-low'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                      {dateFilter === 'all' && 'Fecha: Todos'}
-                      {dateFilter === '30days' && 'Últimos 30 días'}
-                      {dateFilter === '60days' && 'Últimos 60 días'}
-                      {dateFilter === '90days' && 'Últimos 90 días'}
-                      {dateFilter === 'custom' && 'Rango personalizado'}
-                      <span className="material-symbols-outlined text-[12px] ml-0.5">expand_more</span>
-                    </button>
-
                     {isDateDropdownOpen && (
                       <>
-                        <div 
-                          onClick={() => setIsDateDropdownOpen(false)}
-                          className="fixed inset-0 z-10"
-                        />
-                        <div className="absolute left-0 mt-2 w-64 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-2.5 px-3 text-left space-y-2">
-                          <button 
-                            onClick={() => { setDateFilter('all'); setIsDateDropdownOpen(false); }}
-                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === 'all' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
-                          >
-                            Todos
-                          </button>
-                          <button 
-                            onClick={() => { setDateFilter('30days'); setIsDateDropdownOpen(false); }}
-                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === '30days' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
-                          >
-                            Últimos 30 días
-                          </button>
-                          <button 
-                            onClick={() => { setDateFilter('60days'); setIsDateDropdownOpen(false); }}
-                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === '60days' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
-                          >
-                            Últimos 60 días
-                          </button>
-                          <button 
-                            onClick={() => { setDateFilter('90days'); setIsDateDropdownOpen(false); }}
-                            className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === '90days' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
-                          >
-                            Últimos 90 días
-                          </button>
-                          <div className="h-px bg-outline-variant/5 my-1"></div>
-                          
-                          {/* Rango Personalizado */}
-                          <div className="space-y-2">
-                            <button 
-                              onClick={() => setDateFilter('custom')}
-                              className={`w-full px-3 py-1.5 rounded-sm text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left ${dateFilter === 'custom' ? 'font-bold bg-surface-container-low text-primary' : ''}`}
+                        <div onClick={() => setIsDateDropdownOpen(false)} className="fixed inset-0 z-10" />
+                        <div className="absolute left-0 mt-2 w-48 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-20 py-1 animate-fade-in">
+                          {[
+                            { val: 'all', label: 'Todos los documentos' },
+                            { val: '30days', label: 'Últimos 30 días' },
+                            { val: '60days', label: 'Últimos 60 días' },
+                            { val: '90days', label: 'Últimos 90 días' },
+                            { val: 'custom', label: 'Rango personalizado…' },
+                          ].map(({ val, label }) => (
+                            <button
+                              key={val}
+                              onClick={() => { setDateFilter(val as typeof dateFilter); setIsDateDropdownOpen(false); }}
+                              className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${dateFilter === val ? 'font-bold text-primary bg-primary/5' : 'text-on-surface'}`}
                             >
-                              Rango personalizado...
+                              <span>{label}</span>
+                              {dateFilter === val && <span className="material-symbols-outlined text-[14px] text-primary">check</span>}
                             </button>
-                            
-                            {dateFilter === 'custom' && (
-                              <div className="space-y-2 p-2 bg-surface-container-low/50 rounded-sm border border-outline-variant/5 mt-1 animate-fade-in">
-                                <div className="space-y-1">
-                                  <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Desde:</label>
-                                  <input 
-                                    type="date"
-                                    value={customStartDate}
-                                    onChange={(e) => setCustomStartDate(e.target.value)}
-                                    className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Hasta:</label>
-                                  <input 
-                                    type="date"
-                                    value={customEndDate}
-                                    onChange={(e) => setCustomEndDate(e.target.value)}
-                                    className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none"
-                                  />
-                                </div>
-                                <div className="flex justify-end gap-2 pt-1">
-                                  <button 
-                                    onClick={() => {
-                                      setCustomStartDate('');
-                                      setCustomEndDate('');
-                                      setDateFilter('all');
-                                      setIsDateDropdownOpen(false);
-                                    }}
-                                    className="text-[10px] text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
-                                  >
-                                    Limpiar
-                                  </button>
-                                  <button 
-                                    onClick={() => setIsDateDropdownOpen(false)}
-                                    className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm hover:opacity-95 active:scale-95 transition-all focus:outline-none"
-                                  >
-                                    Aplicar
-                                  </button>
-                                </div>
+                          ))}
+                          {dateFilter === 'custom' && (
+                            <div className="px-3 pb-2 space-y-2 border-t border-outline-variant/5 mt-1">
+                              <div className="space-y-1 pt-2">
+                                <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Desde:</label>
+                                <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
                               </div>
-                            )}
-                          </div>
+                              <div className="space-y-1">
+                                <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Hasta:</label>
+                                <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
+                              </div>
+                              <div className="flex justify-end gap-2 pt-1">
+                                <button onClick={() => { setCustomStartDate(''); setCustomEndDate(''); setDateFilter('all'); setIsDateDropdownOpen(false); }} className="text-[10px] text-on-surface-variant hover:text-primary transition-colors focus:outline-none">Limpiar</button>
+                                <button onClick={() => setIsDateDropdownOpen(false)} className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm hover:opacity-95 active:scale-95 transition-all focus:outline-none">Aplicar</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
                   </div>
 
-                  {/* Document Type Filter Dropdown */}
-                  <div className="relative font-sans">
-                    <button 
-                      onClick={() => setIsDocTypeFilterDropdownOpen(!isDocTypeFilterDropdownOpen)}
-                      className={`flex items-center gap-2 px-4 py-1.5 border rounded-sm text-xs font-semibold transition-all focus:outline-none focus:ring-0 ${
-                        docTypeFilter !== 'all' 
-                          ? 'bg-secondary/10 border-secondary/30 text-secondary font-bold' 
-                          : 'border-outline-variant/10 text-on-surface hover:bg-surface-container-low'
+                  {/* ── PILL Tipo (Desktop) ── */}
+                  <div className="relative">
+                    <button
+                      onClick={() => { setIsDocTypeFilterDropdownOpen(!isDocTypeFilterDropdownOpen); setIsFilterDropdownOpen(false); setIsDateDropdownOpen(false); }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                        docTypeFilter !== 'all'
+                          ? 'bg-secondary text-white border-secondary shadow-sm'
+                          : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[14px]">folder_open</span>
-                      {docTypeFilter === 'all' ? 'Tipo: Todos' : [
-                        { value: 'all', label: 'Todos los tipos' },
-                        { value: 'Factura proveedor', label: 'Factura Prov' },
-                        { value: 'Facturas cliente', label: 'Factura Cli' },
-                        { value: 'Tickets simplificados', label: 'Ticket / Simplificado' },
-                        { value: 'Extractos bancarios', label: 'Extracto Bancario' },
-                        { value: 'Recibos', label: 'Recibo / Justificante' },
-                        { value: 'Nominas', label: 'Nómina' },
-                        { value: 'Seguros sociales', label: 'Seguros Sociales' },
-                        { value: 'Liquidación de impuestos', label: 'Liquidación Impuestos' },
-                        { value: 'Escrituras-contratos', label: 'Escritura / Contrato' },
-                        { value: 'Otros', label: 'Otros / Varios' }
-                      ].find(c => c.value === docTypeFilter)?.label}
-                      <span className="material-symbols-outlined text-[12px] ml-0.5">expand_more</span>
+                      <span className="material-symbols-outlined text-[13px]">folder_open</span>
+                      {docTypeFilter === 'all' ? 'Tipo' : docTypeFilter}
+                      {docTypeFilter !== 'all' && (
+                        <span onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80">close</span>
+                      )}
+                      {docTypeFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
                     </button>
-
                     {isDocTypeFilterDropdownOpen && (
                       <>
-                        <div 
-                          onClick={() => setIsDocTypeFilterDropdownOpen(false)}
-                          className="fixed inset-0 z-10"
-                        />
-                        <div className="absolute left-0 mt-2 w-56 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-1 max-h-64 overflow-y-auto custom-scrollbar text-left">
+                        <div onClick={() => setIsDocTypeFilterDropdownOpen(false)} className="fixed inset-0 z-10" />
+                        <div className="absolute left-0 mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-20 py-1 max-h-64 overflow-y-auto custom-scrollbar animate-fade-in">
                           {[
                             { value: 'all', label: 'Todos los tipos' },
                             { value: 'Factura proveedor', label: 'Factura Proveedor' },
@@ -3414,74 +3300,123 @@ export default function Home() {
                             { value: 'Escrituras-contratos', label: 'Escritura / Contrato' },
                             { value: 'Otros', label: 'Otros / Varios' }
                           ].map((cat) => (
-                            <button 
+                            <button
                               key={cat.value}
                               onClick={() => { setDocTypeFilter(cat.value); setIsDocTypeFilterDropdownOpen(false); }}
-                              className={`w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left flex items-center justify-between ${docTypeFilter === cat.value ? 'font-bold bg-surface-container-low text-secondary' : ''}`}
+                              className={`w-full px-4 py-2.5 text-xs text-left flex items-center justify-between transition-colors hover:bg-surface-container-low ${docTypeFilter === cat.value ? 'font-bold text-secondary bg-secondary/5' : 'text-on-surface'}`}
                             >
                               <span>{cat.label}</span>
+                              {docTypeFilter === cat.value && <span className="material-symbols-outlined text-[14px] text-secondary">check</span>}
                             </button>
                           ))}
                         </div>
                       </>
                     )}
                   </div>
+
+                  {/* ── PILL Estado (Desktop) ── */}
+                  <div className="relative">
+                    <button
+                      onClick={() => { setIsFilterDropdownOpen(!isFilterDropdownOpen); setIsDateDropdownOpen(false); setIsDocTypeFilterDropdownOpen(false); }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                        statusFilter !== 'all'
+                          ? 'bg-success text-white border-success shadow-sm'
+                          : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[13px]">radio_button_checked</span>
+                      {statusFilter === 'all' && 'Estado'}
+                      {statusFilter === 'pending' && 'Pendientes'}
+                      {statusFilter === 'processing' && 'Procesando'}
+                      {statusFilter === 'completed' && 'Completados'}
+                      {statusFilter === 'error' && 'Errores'}
+                      {statusFilter !== 'all' && (
+                        <span onClick={(e) => { e.stopPropagation(); setStatusFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80">close</span>
+                      )}
+                      {statusFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
+                    </button>
+                    {isFilterDropdownOpen && (
+                      <>
+                        <div onClick={() => setIsFilterDropdownOpen(false)} className="fixed inset-0 z-10" />
+                        <div className="absolute left-0 mt-2 w-44 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-20 py-1 animate-fade-in">
+                          {[
+                            { val: 'all', label: 'Todos' },
+                            { val: 'completed', label: 'Completados' },
+                            { val: 'pending', label: 'Pendientes' },
+                            { val: 'processing', label: 'Procesando' },
+                            { val: 'error', label: 'Errores' },
+                          ].map(({ val, label }) => (
+                            <button
+                              key={val}
+                              onClick={() => { setStatusFilter(val as typeof statusFilter); setIsFilterDropdownOpen(false); }}
+                              className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${statusFilter === val ? 'font-bold text-success bg-success/5' : 'text-on-surface'}`}
+                            >
+                              <span>{label}</span>
+                              {statusFilter === val && <span className="material-symbols-outlined text-[14px] text-success">check</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Limpiar filtros (Desktop) */}
+                  {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all') && (
+                    <button
+                      onClick={() => { setStatusFilter('all'); setDocTypeFilter('all'); setDateFilter('all'); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-error/30 bg-error/10 text-error text-[10px] font-bold whitespace-nowrap hover:bg-error/15 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">filter_alt_off</span>
+                      Limpiar
+                    </button>
+                  )}
                 </div>
-                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
-                  {/* Botón Eliminar Seleccionados */}
-                  <button 
+
+                {/* Acciones Derecha: Eliminar + Exportar ContaPlus */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
                     onClick={handleDeleteSelectedDocs}
                     disabled={selectedDocIds.length === 0}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-error/10 text-error border border-error/20 rounded-sm text-xs font-semibold hover:bg-error/20 active:scale-[0.98] transition-all disabled:opacity-0 disabled:pointer-events-none focus:outline-none"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-error/10 text-error border border-error/20 rounded-full text-[11px] font-semibold hover:bg-error/20 active:scale-[0.98] transition-all disabled:opacity-0 disabled:pointer-events-none focus:outline-none"
                   >
-                    <span className="material-symbols-outlined text-[14px]">delete</span>
+                    <span className="material-symbols-outlined text-[13px]">delete</span>
                     Eliminar ({selectedDocIds.length})
                   </button>
                   <div className="relative">
-                  <button 
-                    onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                    disabled={selectedDocIds.length === 0}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-1.5 bg-secondary text-white rounded-sm text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
-                  >
-                    <span className="material-symbols-outlined text-[14px] text-white">download_for_offline</span>
-                    Exportar ContaPlus ({selectedDocIds.length})
-                    <span className="material-symbols-outlined text-[12px] text-white ml-0.5">expand_more</span>
-                  </button>
-
-                  {isExportDropdownOpen && selectedDocIds.length > 0 && (
-                    <div className="absolute right-0 mt-2 w-56 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-1 text-left left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0">
-                      <button 
-                        onClick={() => { handleExportContaplus('2008', 'txt'); setIsExportDropdownOpen(false); }}
-                        className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
-                      >
-                        <span>ContaPlus 2008 (TXT)</span>
-                        <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Texto ANSI</span>
-                      </button>
-                      <button 
-                        onClick={() => { handleExportContaplus('2008', 'csv'); setIsExportDropdownOpen(false); }}
-                        className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
-                      >
-                        <span>ContaPlus 2008 (CSV)</span>
-                        <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Excel / CSV</span>
-                      </button>
-                      <div className="h-px bg-outline-variant/5 my-1"></div>
-                      <button 
-                        onClick={() => { handleExportContaplus('2011', 'txt'); setIsExportDropdownOpen(false); }}
-                        className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
-                      >
-                        <span>ContaPlus 2011 (TXT)</span>
-                        <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Texto ANSI</span>
-                      </button>
-                      <button 
-                        onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }}
-                        className="w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between"
-                      >
-                        <span>ContaPlus 2011 (CSV)</span>
-                        <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">Excel / CSV</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    <button
+                      onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                      disabled={selectedDocIds.length === 0}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-white rounded-full text-[11px] font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none focus:outline-none"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">download_for_offline</span>
+                      ContaPlus ({selectedDocIds.length})
+                      <span className="material-symbols-outlined text-[11px]">expand_more</span>
+                    </button>
+                    {isExportDropdownOpen && selectedDocIds.length > 0 && (
+                      <>
+                        <div onClick={() => setIsExportDropdownOpen(false)} className="fixed inset-0 z-10" />
+                        <div className="absolute right-0 mt-2 w-56 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-20 py-1 animate-fade-in">
+                          <button onClick={() => { handleExportContaplus('2008', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2008 (TXT)</span>
+                            <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">ANSI</span>
+                          </button>
+                          <button onClick={() => { handleExportContaplus('2008', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2008 (CSV)</span>
+                            <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">CSV</span>
+                          </button>
+                          <div className="h-px bg-outline-variant/5 my-1" />
+                          <button onClick={() => { handleExportContaplus('2011', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2011 (TXT)</span>
+                            <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">ANSI</span>
+                          </button>
+                          <button onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2011 (CSV)</span>
+                            <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">CSV</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -3506,169 +3441,167 @@ export default function Home() {
                     </div>
                   ) : (
                     <>
-                    <table className="hidden md:table w-full text-left zebra-table border-collapse">
-                      <thead className="sticky top-0 bg-surface z-10">
-                        <tr className="border-b border-outline-variant/5">
-                          <th className="py-3 px-6 w-10">
-                            <input 
-                              type="checkbox"
-                              checked={selectedDocIds.length === documents.length && documents.length > 0}
-                              onChange={handleSelectAll}
-                              className="rounded-sm border-outline-variant/20 text-secondary focus:ring-secondary/30 h-3.5 w-3.5"
-                            />
-                          </th>
-                          <th className="py-3 px-6 text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">Documento</th>
-                          <th className="py-3 px-6 text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">Estado</th>
-                          <th className="py-3 px-6 text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">Fecha</th>
-                          <th className="py-3 px-6 text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">Monto</th>
-                          <th className="py-3 px-6 text-[9px] font-bold text-on-surface-variant uppercase tracking-widest text-right">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-[11px] divide-y divide-outline-variant/10">
-                        {filteredDocs.map((doc) => {
-                          const entry = entries.find(e => e.document_id === doc.id);
-                          const amount = entry 
-                            ? entry.lines.filter(l => l.line_type === 'debe').reduce((sum, l) => sum + l.amount, 0)
-                            : 1240.50;
-                          return (
-                            <tr key={doc.id} className="hover:bg-secondary/5 transition-colors group">
-                              <td className="py-4 px-6">
-                                <input 
+                    {/* ═══ GRID DE TARJETAS (Desktop + Tablet) ═══ */}
+                    <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+                      {filteredDocs.map((doc) => {
+                        const entry = entries.find(e => e.document_id === doc.id);
+                        const amount = entry
+                          ? entry.lines.filter(l => l.line_type === 'debe').reduce((sum, l) => sum + l.amount, 0)
+                          : 0;
+                        const { type: displayType, description: displayDesc } = getDocumentDisplayInfo(doc);
+                        let badgeColor = 'bg-primary/10 text-primary border-primary/20';
+                        if (displayType.includes('proveedor')) badgeColor = 'bg-error/10 text-error border-error/20';
+                        else if (displayType.includes('cliente')) badgeColor = 'bg-success/10 text-success border-success/20';
+                        else if (displayType.includes('bancario') || displayType.includes('Extracto')) badgeColor = 'bg-secondary/10 text-secondary border-secondary/20';
+                        else if (displayType.includes('Nómina') || displayType.includes('Nomina')) badgeColor = 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+                        else if (displayType.includes('impuestos')) badgeColor = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+
+                        let storageIcon = 'cloud';
+                        if (doc.storage_type === 'local') storageIcon = 'phone_android';
+                        else if (doc.storage_type === 'drive') storageIcon = 'add_to_drive';
+
+                        return (
+                          <div key={doc.id} className="bg-surface p-4 rounded-sm border border-outline-variant/10 flex flex-col gap-3 shadow-precision hover:border-outline-variant/30 hover:shadow-md transition-all select-none">
+                            {/* Top: checkbox + nombre + estado */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <input
                                   type="checkbox"
                                   checked={selectedDocIds.includes(doc.id)}
                                   onChange={() => handleSelectRow(doc.id)}
-                                  className="row-selector rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3.5 w-3.5"
+                                  className="row-selector rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3.5 w-3.5 shrink-0"
                                 />
-                              </td>
-                              <td className="py-4 px-6">
-                                <div className="flex items-start gap-3">
-                                  <span className="material-symbols-outlined text-on-surface-variant mt-0.5 text-base">description</span>
-                                  <div className="flex flex-col text-left">
-                                    {(() => {
-                                      const { type: displayType, description: displayDesc } = getDocumentDisplayInfo(doc);
-                                      let badgeColor = 'bg-primary/10 text-primary border-primary/20';
-                                      if (displayType.includes('proveedor')) {
-                                        badgeColor = 'bg-error/10 text-error border-error/20';
-                                      } else if (displayType.includes('cliente')) {
-                                        badgeColor = 'bg-success/10 text-success border-success/20';
-                                      } else if (displayType.includes('bancario') || displayType.includes('Extracto')) {
-                                        badgeColor = 'bg-secondary/10 text-secondary border-secondary/20';
-                                      } else if (displayType.includes('Nómina') || displayType.includes('Nomina')) {
-                                        badgeColor = 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
-                                      } else if (displayType.includes('impuestos')) {
-                                        badgeColor = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-                                      }
-                                      return (
-                                        <>
-                                          <div className="flex items-center gap-1.5 flex-wrap">
-                                            <span className="font-semibold text-primary">{doc.name}</span>
-                                            {/* Subtype Badge */}
-                                            <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider border ${badgeColor}`}>
-                                              {displayType}
-                                            </span>
-                                            {/* Insignias de Almacenamiento */}
-                                            {doc.storage_type === 'local' && (
-                                              <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider ${
-                                                availableLocalDocIds.includes(doc.id) 
-                                                  ? 'bg-primary/5 text-primary border border-primary/10' 
-                                                  : 'bg-amber-500/10 text-amber-500 border border-amber-500/10'
-                                              }`}>
-                                                Local
-                                              </span>
-                                            )}
-                                            {doc.storage_type === 'drive' && (
-                                              <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-secondary/5 text-secondary border border-secondary/10">
-                                                Drive
-                                              </span>
-                                            )}
-                                            {(!doc.storage_type || doc.storage_type === 'supabase') && (
-                                              <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-surface-container-high text-on-surface-variant/80 border border-outline-variant/5">
-                                                Nube
-                                              </span>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-1.5 mt-0.5">
-                                            <span className="text-[9px] text-on-surface-variant truncate max-w-[200px] md:max-w-[320px] italic" title={displayDesc}>
-                                              {displayDesc}
-                                            </span>
-                                            {doc.storage_type === 'local' && !availableLocalDocIds.includes(doc.id) && (
-                                              <span className="flex items-center text-amber-500 text-[8px] font-bold gap-0.5 select-none" title="Este archivo binario se guardó localmente en otro navegador o dispositivo y no está disponible aquí. Importa un backup para visualizarlo.">
-                                                <span className="material-symbols-outlined text-[10px]">warning</span>
-                                                No disponible en este dispositivo
-                                              </span>
-                                            )}
-                                          </div>
-                                        </>
-                                      );
-                                    })()}
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-semibold text-primary text-xs truncate">{doc.name}</span>
+                                  <span className="text-[9px] text-on-surface-variant italic truncate mt-0.5" title={displayDesc}>{displayDesc}</span>
+                                </div>
+                              </div>
+                              <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border shrink-0 ${
+                                doc.status === 'completed' ? 'bg-[#006d37]/10 text-[#006d37] border-[#006d37]/20' :
+                                doc.status === 'processing' ? 'bg-warning/10 text-warning border-warning/20 animate-pulse' :
+                                doc.status === 'error' ? 'bg-error/10 text-error border-error/20' :
+                                'bg-surface-container-high text-on-surface-variant border-outline-variant/20'
+                              }`}>
+                                <span className="w-1 h-1 rounded-full bg-current" />
+                                {doc.status === 'completed' ? 'Listo' : doc.status === 'processing' ? 'Leyendo' : doc.status === 'error' ? 'Error' : 'En cola'}
+                              </span>
+                            </div>
+
+                            {/* Middle: tipo + storage + fecha + importe */}
+                            <div className="flex items-center justify-between border-t border-outline-variant/5 pt-2.5">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`px-1.5 py-0.5 rounded-sm border text-[8px] font-bold uppercase tracking-wider ${badgeColor}`}>{displayType}</span>
+                                  <div className="flex items-center gap-0.5 opacity-60">
+                                    <span className="material-symbols-outlined text-[10px] text-on-surface-variant">{storageIcon}</span>
+                                    <span className="text-[9px] font-semibold text-on-surface-variant capitalize">{doc.storage_type || 'local'}</span>
                                   </div>
                                 </div>
-                              </td>
-                              <td className="py-4 px-6">
-                                <span className={`px-2.5 py-1 text-[9px] font-bold rounded-sm uppercase tracking-wider ${
-                                  doc.status === 'completed' ? 'bg-secondary/10 text-secondary' : 
-                                  doc.status === 'processing' ? 'bg-primary/10 text-primary animate-pulse' : 
-                                  doc.status === 'error' ? 'bg-error/10 text-error' : 'bg-surface-container-high text-on-surface-variant/80'
-                                }`}>
-                                  {doc.status === 'completed' ? 'Procesado' : 
-                                   doc.status === 'processing' ? 'Procesando' : 
-                                   doc.status === 'error' ? 'Error' : 'Pendiente'}
+                                <span className="text-[9px] font-mono text-on-surface-variant/70">
+                                  {new Date(doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                                 </span>
-                              </td>
-                              <td className="py-4 px-6 font-mono-data text-on-surface-variant text-[10px]">
-                                {new Date(doc.created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </td>
-                              <td className="py-4 px-6 font-bold font-mono-data text-primary">
-                                ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="py-4 px-6 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  {entry ? (
-                                    <>
-                                      <button 
-                                        onClick={() => setActiveEntryForModal(entry)}
-                                        className="p-1.5 rounded-sm hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors focus:outline-none" 
-                                        title="Ver Asiento Contable"
-                                      >
-                                        <span className="material-symbols-outlined text-[16px]">visibility</span>
-                                      </button>
-                                      <button 
-                                        onClick={() => handleDownloadPDF(entry)}
-                                        className="p-1.5 rounded-sm hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors focus:outline-none" 
-                                        title="Descargar PDF Asiento"
-                                      >
-                                        <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <span className="text-[10px] text-on-surface-variant/40 italic mr-xs">Sin Asiento</span>
-                                  )}
-                                  <button 
-                                    onClick={() => handleDownloadDocument(doc)}
-                                    className="p-1.5 rounded-sm hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors focus:outline-none" 
-                                    title="Descargar Documento Original"
-                                  >
-                                    <span className="material-symbols-outlined text-[16px]">download</span>
+                              </div>
+                              <span className="text-sm font-bold font-mono-data text-primary">
+                                {amount > 0 ? `€${amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '€0,00'}
+                              </span>
+                            </div>
+
+                            {/* Bottom: acciones */}
+                            <div className="flex items-center justify-end gap-1.5 border-t border-outline-variant/5 pt-2">
+                              {entry && (
+                                <>
+                                  <button onClick={() => setActiveEntryForModal(entry)} className="flex items-center gap-1 px-2.5 py-1 bg-primary/5 hover:bg-primary/10 text-primary border border-primary/15 rounded-sm text-[10px] font-bold transition-all focus:outline-none">
+                                    <span className="material-symbols-outlined text-[12px]">visibility</span>
+                                    Ver Asiento
                                   </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                  <button onClick={() => handleDownloadPDF(entry)} className="p-1.5 rounded-sm hover:bg-surface-container-high text-on-surface-variant hover:text-primary border border-outline-variant/10 transition-colors focus:outline-none" title="PDF Asiento">
+                                    <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                  </button>
+                                </>
+                              )}
+                              {!entry && <span className="text-[9px] text-on-surface-variant/40 italic mr-auto">Sin Asiento</span>}
+                              <button onClick={() => handleDownloadDocument(doc)} className="p-1.5 rounded-sm hover:bg-surface-container-high text-on-surface-variant hover:text-primary border border-outline-variant/10 transition-colors focus:outline-none" title="Descargar Original">
+                                <span className="material-symbols-outlined text-[12px]">download</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
                     {/* ═══════════════════════════════════════════════════
                         FILTROS PILL MÓVIL (solo block md:hidden)
                         Fila deslizante horizontal con 3 pastillas
                     ═══════════════════════════════════════════════════ */}
-                    <div className="block md:hidden sticky top-0 z-20 bg-background/90 backdrop-blur-sm px-4 py-2.5 border-b border-outline-variant/10">
+                    {/* Botón Exportar ContaPlus + Eliminar en móvil */}
+                    <div className="block md:hidden flex items-center justify-between gap-2 px-4 py-2.5 border-b border-outline-variant/10 bg-surface/80">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0}
+                          onChange={handleSelectAll}
+                          className="rounded-sm border-outline-variant/20 text-secondary focus:ring-secondary/30 h-3.5 w-3.5"
+                        />
+                        <span className="text-[9px] text-on-surface-variant font-semibold">
+                          {selectedDocIds.length > 0 ? `${selectedDocIds.length} seleccionado${selectedDocIds.length > 1 ? 's' : ''}` : 'Seleccionar todo'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {selectedDocIds.length > 0 && (
+                          <button
+                            onClick={handleDeleteSelectedDocs}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-error/10 text-error border border-error/20 rounded-full text-[10px] font-bold transition-all focus:outline-none"
+                          >
+                            <span className="material-symbols-outlined text-[11px]">delete</span>
+                            Eliminar
+                          </button>
+                        )}
+                        <div className="relative">
+                          <button
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            disabled={selectedDocIds.length === 0}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-secondary text-white rounded-full text-[10px] font-bold transition-all disabled:opacity-40 disabled:pointer-events-none focus:outline-none"
+                          >
+                            <span className="material-symbols-outlined text-[11px]">download_for_offline</span>
+                            ContaPlus ({selectedDocIds.length})
+                            <span className="material-symbols-outlined text-[10px]">expand_more</span>
+                          </button>
+                          {isExportDropdownOpen && selectedDocIds.length > 0 && (
+                            <>
+                              <div onClick={() => setIsExportDropdownOpen(false)} className="fixed inset-0 z-40" />
+                              <div className="absolute right-0 mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                                <button onClick={() => { handleExportContaplus('2008', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                                  <span>ContaPlus 2008 (TXT)</span>
+                                  <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase">ANSI</span>
+                                </button>
+                                <button onClick={() => { handleExportContaplus('2008', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                                  <span>ContaPlus 2008 (CSV)</span>
+                                  <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
+                                </button>
+                                <div className="h-px bg-outline-variant/5 my-1" />
+                                <button onClick={() => { handleExportContaplus('2011', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                                  <span>ContaPlus 2011 (TXT)</span>
+                                  <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase">ANSI</span>
+                                </button>
+                                <button onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                                  <span>ContaPlus 2011 (CSV)</span>
+                                  <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Filtros Pill Móvil */}
+                    <div className="block md:hidden bg-background/90 backdrop-blur-sm px-4 py-2.5 border-b border-outline-variant/10">
                       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
 
                         {/* ── PILL 1: Fecha ── */}
                         <div className="relative shrink-0">
                           <button
-                            onClick={() => { setIsMobileDateOpen(!isMobileDateOpen); setIsMobileStatusOpen(false); setIsMobileTypeOpen(false); }}
+                            onClick={() => { setIsMobileDateOpen(!isMobileDateOpen); setIsMobileStatusOpen(false); setIsMobileTypeOpen(false); setIsExportDropdownOpen(false); }}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
                               dateFilter !== 'all'
                                 ? 'bg-primary text-white border-primary shadow-sm'
@@ -3691,7 +3624,9 @@ export default function Home() {
                           </button>
 
                           {isMobileDateOpen && (
-                            <div className="absolute left-0 top-full mt-2 w-48 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-30 py-1 animate-fade-in">
+                            <>
+                            <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-40" />
+                            <div className="absolute left-0 top-full mt-2 w-48 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los documentos' },
                                 { val: '30days', label: 'Últimos 30 días' },
@@ -3709,6 +3644,7 @@ export default function Home() {
                                 </button>
                               ))}
                             </div>
+                            </>
                           )}
                         </div>
 
@@ -3734,7 +3670,9 @@ export default function Home() {
                           </button>
 
                           {isMobileTypeOpen && (
-                            <div className="absolute left-0 top-full mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-30 py-1 animate-fade-in">
+                            <>
+                            <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-40" />
+                            <div className="absolute left-0 top-full mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los tipos' },
                                 { val: 'Fact. Proveedor', label: 'Factura Proveedor' },
@@ -3758,6 +3696,7 @@ export default function Home() {
                                 </button>
                               ))}
                             </div>
+                            </>
                           )}
                         </div>
 
@@ -3787,7 +3726,9 @@ export default function Home() {
                           </button>
 
                           {isMobileStatusOpen && (
-                            <div className="absolute left-0 top-full mt-2 w-44 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-30 py-1 animate-fade-in">
+                            <>
+                            <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-40" />
+                            <div className="absolute left-0 top-full mt-2 w-44 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos' },
                                 { val: 'completed', label: 'Completados' },
@@ -3805,6 +3746,7 @@ export default function Home() {
                                 </button>
                               ))}
                             </div>
+                            </>
                           )}
                         </div>
 
