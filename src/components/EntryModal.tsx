@@ -279,7 +279,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             type="text"
             value={line.subaccount_code}
             onChange={(e) => handleLineChange(index, 'debe', 'subaccount_code', e.target.value)}
-            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="Subcuenta"
           />
         </td>
@@ -288,7 +288,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             type="text"
             value={line.subaccount_desc}
             onChange={(e) => handleLineChange(index, 'debe', 'subaccount_desc', e.target.value)}
-            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="Descripción"
           />
         </td>
@@ -299,7 +299,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               step="0.01"
               value={line.amount || ''}
               onChange={(e) => handleLineChange(index, 'debe', 'amount', e.target.value)}
-              className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="0.00"
             />
             <button
@@ -349,7 +349,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             type="text"
             value={line.subaccount_code}
             onChange={(e) => handleLineChange(index, 'haber', 'subaccount_code', e.target.value)}
-            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-secondary"
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-secondary"
             placeholder="Subcuenta"
           />
         </td>
@@ -358,7 +358,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             type="text"
             value={line.subaccount_desc}
             onChange={(e) => handleLineChange(index, 'haber', 'subaccount_desc', e.target.value)}
-            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-secondary"
+            className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs focus:outline-none focus:ring-1 focus:ring-secondary"
             placeholder="Descripción"
           />
         </td>
@@ -369,7 +369,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               step="0.01"
               value={line.amount || ''}
               onChange={(e) => handleLineChange(index, 'haber', 'amount', e.target.value)}
-              className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-secondary"
+              className="w-full bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-secondary"
               placeholder="0.00"
             />
             <button
@@ -400,7 +400,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                     type="text"
                     value={editedReference}
                     onChange={(e) => setEditedReference(e.target.value)}
-                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary w-32"
+                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary w-32"
                   />
                 </div>
                 
@@ -410,7 +410,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                     type="date"
                     value={editedDate}
                     onChange={(e) => setEditedDate(e.target.value)}
-                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-mono text-primary focus:outline-none focus:ring-1 focus:ring-primary w-36"
+                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-mono text-primary focus:outline-none focus:ring-1 focus:ring-primary w-36"
                   />
                 </div>
 
@@ -419,7 +419,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                   <select
                     value={editedType}
                     onChange={(e) => setEditedType(e.target.value)}
-                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    className="bg-surface border border-outline-variant/15 rounded-sm px-2 py-1 text-[16px] md:text-xs font-semibold text-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                   >
                     <option value="Factura">Factura</option>
                     <option value="Recibo">Recibo</option>
