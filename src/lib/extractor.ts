@@ -1,29 +1,28 @@
-import { PDFParse } from 'pdf-parse';
-import { createWorker } from 'tesseract.js';
+import { extractText } from 'unpdf';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
- * Extrae texto digital de un buffer de PDF utilizando pdf-parse.
+ * Extrae texto digital de un buffer de PDF utilizando unpdf (de forma serverless compatible).
  */
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
-    const parser = new PDFParse({ data: buffer });
-    const textResult = await parser.getText();
-    await parser.destroy();
-    return textResult.text || '';
+    const uint8Array = new Uint8Array(buffer);
+    const result = await extractText(uint8Array, { mergePages: true });
+    return result.text || '';
   } catch (error) {
-    console.error('Error al extraer texto digital del PDF:', error);
+    console.error('Error al extraer texto digital del PDF con unpdf:', error);
     return '';
   }
 }
 
 /**
- * Realiza OCR sobre un búfer de imagen utilizando Tesseract.js.
+ * Realiza OCR sobre un búfer de imagen utilizando Tesseract.js de forma dinámica.
  */
 export async function extractTextWithTesseract(imageBuffer: Buffer): Promise<string> {
   let worker: any = null;
   try {
-    // Inicializar el worker para español
+    // Importar dinámicamente tesseract para evitar cargarlo en el arranque de la función
+    const { createWorker } = await import('tesseract.js');
     worker = await createWorker('spa');
     const ret = await worker.recognize(imageBuffer);
     return ret.data.text || '';
