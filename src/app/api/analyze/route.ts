@@ -252,57 +252,72 @@ El esquema JSON debe ser exactamente:
   ]
 }`;
 
-    if (isZai) {
-      // Si tenemos texto extraído, usamos el modelo de texto glm-5.2 sin necesidad de visión
-      const zaiRequestBody: any = {
-        response_format: { type: 'json_object' },
-        temperature: 0.1
-      };
+    let fallbackActive = false;
+    let runZai = isZai;
 
-      if (extractedText) {
-        zaiRequestBody.model = 'glm-5.2';
-        zaiRequestBody.messages = [
-          {
-            role: 'user',
-            content: `${prompt}\n\nCONTENIDO EXTRAÍDO DEL DOCUMENTO:\n---\n${extractedText}\n---`
-          }
-        ];
-      } else {
-        const fileDataUrl = `data:${mimeType};base64,${base64File}`;
-        zaiRequestBody.model = 'glm-4v-flash';
-        zaiRequestBody.messages = [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: fileDataUrl
+    if (runZai) {
+      try {
+        // Si tenemos texto extraído, usamos el modelo de texto glm-5.2 sin necesidad de visión
+        const zaiRequestBody: any = {
+          response_format: { type: 'json_object' },
+          temperature: 0.1
+        };
+
+        if (extractedText) {
+          zaiRequestBody.model = 'glm-5.2';
+          zaiRequestBody.messages = [
+            {
+              role: 'user',
+              content: `${prompt}\n\nCONTENIDO EXTRAÍDO DEL DOCUMENTO:\n---\n${extractedText}\n---`
+            }
+          ];
+        } else {
+          const fileDataUrl = `data:${mimeType};base64,${base64File}`;
+          zaiRequestBody.model = 'glm-4v-flash';
+          zaiRequestBody.messages = [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: fileDataUrl
+                  }
                 }
-              }
-            ]
-          }
-        ];
+              ]
+            }
+          ];
+        }
+
+        const zaiRes = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${zaiApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(zaiRequestBody)
+        });
+
+        if (!zaiRes.ok) {
+          const errorText = await zaiRes.text();
+          throw new Error(`Error de la API de Z.ai (${zaiRes.status}): ${errorText}`);
+        }
+
+        const zaiData = await zaiRes.json();
+        text = zaiData.choices?.[0]?.message?.content || '';
+      } catch (zaiError: any) {
+        console.warn('Fallo en la llamada a Z.ai, aplicando fallback a Gemini:', zaiError);
+        if (genAI) {
+          fallbackActive = true;
+          runZai = false; // Desactiva Z.ai para pasar a Gemini
+        } else {
+          throw zaiError;
+        }
       }
+    }
 
-      const zaiRes = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${zaiApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(zaiRequestBody)
-      });
-
-      if (!zaiRes.ok) {
-        const errorText = await zaiRes.text();
-        throw new Error(`Error de la API de Z.ai (${zaiRes.status}): ${errorText}`);
-      }
-
-      const zaiData = await zaiRes.json();
-      text = zaiData.choices?.[0]?.message?.content || '';
-    } else {
+    if (!runZai) {
       // Call Gemini API
       const model = genAI!.getGenerativeModel({
         model: 'gemini-2.5-flash',
@@ -447,7 +462,8 @@ El esquema JSON debe ser exactamente:
 
     return NextResponse.json({
       success: true,
-      data: resultJson
+      data: resultJson,
+      fallbackActive
     });
 
   } catch (error: any) {

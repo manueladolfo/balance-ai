@@ -191,14 +191,17 @@ export default function Home() {
       if (savedToken) setGoogleDriveToken(savedToken);
       if (savedEmail) setGoogleUserEmail(savedEmail);
 
-      const savedProvider = localStorage.getItem('balance_ai_provider') as any;
-      if (savedProvider && ['gemini', 'zai'].includes(savedProvider)) {
-        setActiveAiProvider(savedProvider);
-      }
+      // Force 'gemini' as provider to avoid billing locks
+      setActiveAiProvider('gemini');
+      localStorage.setItem('balance_ai_provider', 'gemini');
       
       const savedOcrMode = localStorage.getItem('balance_ai_ocr_mode') as any;
-      if (savedOcrMode && ['hybrid', 'multimodal', 'local_free'].includes(savedOcrMode)) {
-        setDocumentOcrMode(savedOcrMode);
+      // If the saved mode was multimodal, fallback to hybrid since multimodal is hidden
+      const initialOcrMode = (savedOcrMode === 'multimodal') ? 'hybrid' : savedOcrMode;
+      if (initialOcrMode && ['hybrid', 'local_free'].includes(initialOcrMode)) {
+        setDocumentOcrMode(initialOcrMode);
+      } else {
+        setDocumentOcrMode('hybrid');
       }
     }
   }, []);
@@ -1093,7 +1096,12 @@ export default function Home() {
       }
 
       setUploadProgress(100);
-      addNotification('Documento procesado', `El documento "${file.name}" ha sido analizado y su asiento contable se generó con éxito.`, 'success');
+      if (analyzeData.fallbackActive) {
+        showToast('Z.ai no disponible (saldo/modelo). Procesado con Google Gemini de respaldo.', 'info');
+        addNotification('Procesado con IA de respaldo', `El documento "${file.name}" fue procesado usando Google Gemini como respaldo.`, 'info');
+      } else {
+        addNotification('Documento procesado', `El documento "${file.name}" ha sido analizado y su asiento contable se generó con éxito.`, 'success');
+      }
       
       // Reload documents and entries
       await fetchData(selectedCompanyId);
@@ -1307,9 +1315,17 @@ export default function Home() {
           // Complete step
           setBulkFiles(prev => prev.map(item => 
             item.id === currentItem.id 
-              ? { ...item, status: 'completed', progress: 100 } 
+              ? { 
+                  ...item, 
+                  status: 'completed', 
+                  progress: 100,
+                  fallbackActive: analyzeData.fallbackActive
+                } 
               : item
           ));
+          if (analyzeData.fallbackActive) {
+            showToast(`Documento "${currentItem.file.name}" procesado usando Google Gemini como respaldo.`, 'info');
+          }
 
         } catch (err: any) {
           console.error(`Error processing file ${currentItem.file.name}:`, err);
@@ -4008,7 +4024,8 @@ export default function Home() {
                 </div>
 
                 {/* Active AI Provider Selector Card */}
-                <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 text-left transition-all duration-200 shadow-precision">
+                {false && (
+                  <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 text-left transition-all duration-200 shadow-precision">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h3 className="font-bold text-sm text-primary flex items-center gap-2">
@@ -4051,6 +4068,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* OCR Mode Selector Card */}
                 <div className="bg-surface rounded-sm border border-outline-variant/10 p-6 text-left transition-all duration-200 shadow-precision">
@@ -4063,7 +4081,7 @@ export default function Home() {
                       Define cómo se extraerán los datos y el texto de tus documentos e imágenes antes de enviarlos a la IA.
                     </p>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <button
                         onClick={() => {
                           setDocumentOcrMode('hybrid');
@@ -4083,30 +4101,7 @@ export default function Home() {
                           <span className="font-bold text-xs">Automático (Híbrido)</span>
                         </div>
                         <p className="text-[10px] text-on-surface-variant leading-relaxed">
-                          Extrae texto digital localmente en PDF. Usa Google Cloud Vision para fotos y escaneados de alta precisión.
-                        </p>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setDocumentOcrMode('multimodal');
-                          localStorage.setItem('balance_ai_ocr_mode', 'multimodal');
-                          showToast('Motor de lectura cambiado a Visión Directa (IA Multimodal).', 'info');
-                        }}
-                        className={`flex flex-col items-start p-4 rounded-sm border transition-all text-left focus:outline-none cursor-pointer ${
-                          documentOcrMode === 'multimodal'
-                            ? 'bg-secondary/5 border-secondary/40 text-on-surface'
-                            : 'bg-surface-container-low border-outline-variant/10 hover:border-outline-variant/30 text-on-surface/80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className={`material-symbols-outlined text-sm ${documentOcrMode === 'multimodal' ? 'text-secondary font-bold' : 'text-on-surface-variant/60'}`}>
-                            {documentOcrMode === 'multimodal' ? 'radio_button_checked' : 'radio_button_unchecked'}
-                          </span>
-                          <span className="font-bold text-xs">Visión Directa</span>
-                        </div>
-                        <p className="text-[10px] text-on-surface-variant leading-relaxed">
-                          Envía el archivo base64 completo a la IA. Requiere que la IA activa tenga soporte visual (ej. Gemini).
+                          Extrae texto digital localmente en PDF. Usa Google Cloud Vision o Gemini para fotos y escaneados de alta precisión.
                         </p>
                       </button>
 
@@ -4129,7 +4124,7 @@ export default function Home() {
                           <span className="font-bold text-xs">Local Gratuito</span>
                         </div>
                         <p className="text-[10px] text-on-surface-variant leading-relaxed">
-                          Extrae texto digital en PDF. Utiliza Tesseract.js de forma 100% local y gratuita para fotos.
+                          Extrae texto digital en PDF. Utiliza Tesseract.js de forma 100% local y gratuita para fotos (respaldo a Gemini para PDF escaneado).
                         </p>
                       </button>
                     </div>
@@ -4212,7 +4207,8 @@ export default function Home() {
                 </div>
 
                 {/* Z.ai Status Card */}
-                <div className="bg-surface rounded-sm border border-outline-variant/10 p-8 text-left transition-all duration-200 hover:border-outline-variant/20 shadow-precision">
+                {false && (
+                  <div className="bg-surface rounded-sm border border-outline-variant/10 p-8 text-left transition-all duration-200 hover:border-outline-variant/20 shadow-precision">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-on-surface-variant text-lg">electric_bolt</span>
@@ -4285,6 +4281,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Storage Configuration Card */}
                 <div className="bg-surface rounded-sm border border-outline-variant/10 p-8 text-left transition-all duration-200 hover:border-outline-variant/20 shadow-precision">
