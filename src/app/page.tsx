@@ -180,6 +180,10 @@ export default function Home() {
   const [docTypeFilter, setDocTypeFilter] = useState<string>('all');
   const [isDocTypeFilterDropdownOpen, setIsDocTypeFilterDropdownOpen] = useState(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+  // Mobile pill filter dropdowns
+  const [isMobileStatusOpen, setIsMobileStatusOpen] = useState(false);
+  const [isMobileTypeOpen, setIsMobileTypeOpen] = useState(false);
+  const [isMobileDateOpen, setIsMobileDateOpen] = useState(false);
   // Notifications/Toasts
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -3653,6 +3657,169 @@ export default function Home() {
                         })}
                       </tbody>
                     </table>
+
+                    {/* ═══════════════════════════════════════════════════
+                        FILTROS PILL MÓVIL (solo block md:hidden)
+                        Fila deslizante horizontal con 3 pastillas
+                    ═══════════════════════════════════════════════════ */}
+                    <div className="block md:hidden sticky top-0 z-20 bg-background/90 backdrop-blur-sm px-4 py-2.5 border-b border-outline-variant/10">
+                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+
+                        {/* ── PILL 1: Fecha ── */}
+                        <div className="relative shrink-0">
+                          <button
+                            onClick={() => { setIsMobileDateOpen(!isMobileDateOpen); setIsMobileStatusOpen(false); setIsMobileTypeOpen(false); }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                              dateFilter !== 'all'
+                                ? 'bg-primary text-white border-primary shadow-sm'
+                                : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[13px]">calendar_month</span>
+                            {dateFilter === 'all' && 'Fecha'}
+                            {dateFilter === '30days' && 'Últ. 30 días'}
+                            {dateFilter === '60days' && 'Últ. 60 días'}
+                            {dateFilter === '90days' && 'Últ. 90 días'}
+                            {dateFilter === 'custom' && 'Personalizado'}
+                            {dateFilter !== 'all' && (
+                              <span
+                                onClick={(e) => { e.stopPropagation(); setDateFilter('all'); setIsMobileDateOpen(false); }}
+                                className="material-symbols-outlined text-[11px] opacity-80"
+                              >close</span>
+                            )}
+                            {dateFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
+                          </button>
+
+                          {isMobileDateOpen && (
+                            <div className="absolute left-0 top-full mt-2 w-48 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-30 py-1 animate-fade-in">
+                              {[
+                                { val: 'all', label: 'Todos los documentos' },
+                                { val: '30days', label: 'Últimos 30 días' },
+                                { val: '60days', label: 'Últimos 60 días' },
+                                { val: '90days', label: 'Últimos 90 días' },
+                                { val: 'custom', label: 'Rango personalizado…' },
+                              ].map(({ val, label }) => (
+                                <button
+                                  key={val}
+                                  onClick={() => { setDateFilter(val as typeof dateFilter); setIsMobileDateOpen(false); }}
+                                  className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${dateFilter === val ? 'font-bold text-primary bg-primary/5' : 'text-on-surface'}`}
+                                >
+                                  <span>{label}</span>
+                                  {dateFilter === val && <span className="material-symbols-outlined text-[14px] text-primary">check</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── PILL 2: Tipo de Documento ── */}
+                        <div className="relative shrink-0">
+                          <button
+                            onClick={() => { setIsMobileTypeOpen(!isMobileTypeOpen); setIsMobileStatusOpen(false); setIsMobileDateOpen(false); }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                              docTypeFilter !== 'all'
+                                ? 'bg-secondary text-white border-secondary shadow-sm'
+                                : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[13px]">folder_open</span>
+                            {docTypeFilter === 'all' ? 'Tipo' : docTypeFilter}
+                            {docTypeFilter !== 'all' && (
+                              <span
+                                onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); setIsMobileTypeOpen(false); }}
+                                className="material-symbols-outlined text-[11px] opacity-80"
+                              >close</span>
+                            )}
+                            {docTypeFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
+                          </button>
+
+                          {isMobileTypeOpen && (
+                            <div className="absolute left-0 top-full mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-30 py-1 animate-fade-in">
+                              {[
+                                { val: 'all', label: 'Todos los tipos' },
+                                { val: 'Fact. Proveedor', label: 'Factura Proveedor' },
+                                { val: 'Fact. Cliente', label: 'Factura Cliente' },
+                                { val: 'Ticket', label: 'Ticket / Recibo' },
+                                { val: 'Extracto Bancario', label: 'Extracto Bancario' },
+                                { val: 'Recibo', label: 'Recibo' },
+                                { val: 'Nómina', label: 'Nómina' },
+                                { val: 'Seguros Sociales', label: 'Seguros Sociales' },
+                                { val: 'Liq. Impuestos', label: 'Liquidación Impuestos' },
+                                { val: 'Escritura', label: 'Escritura / Contrato' },
+                                { val: 'Otros', label: 'Otros' },
+                              ].map(({ val, label }) => (
+                                <button
+                                  key={val}
+                                  onClick={() => { setDocTypeFilter(val); setIsMobileTypeOpen(false); }}
+                                  className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${docTypeFilter === val ? 'font-bold text-secondary bg-secondary/5' : 'text-on-surface'}`}
+                                >
+                                  <span>{label}</span>
+                                  {docTypeFilter === val && <span className="material-symbols-outlined text-[14px] text-secondary">check</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── PILL 3: Estado ── */}
+                        <div className="relative shrink-0">
+                          <button
+                            onClick={() => { setIsMobileStatusOpen(!isMobileStatusOpen); setIsMobileTypeOpen(false); setIsMobileDateOpen(false); }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                              statusFilter !== 'all'
+                                ? 'bg-success text-white border-success shadow-sm'
+                                : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[13px]">radio_button_checked</span>
+                            {statusFilter === 'all' && 'Estado'}
+                            {statusFilter === 'completed' && 'Completados'}
+                            {statusFilter === 'pending' && 'Pendientes'}
+                            {statusFilter === 'processing' && 'Procesando'}
+                            {statusFilter === 'error' && 'Errores'}
+                            {statusFilter !== 'all' && (
+                              <span
+                                onClick={(e) => { e.stopPropagation(); setStatusFilter('all'); setIsMobileStatusOpen(false); }}
+                                className="material-symbols-outlined text-[11px] opacity-80"
+                              >close</span>
+                            )}
+                            {statusFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
+                          </button>
+
+                          {isMobileStatusOpen && (
+                            <div className="absolute left-0 top-full mt-2 w-44 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-30 py-1 animate-fade-in">
+                              {[
+                                { val: 'all', label: 'Todos' },
+                                { val: 'completed', label: 'Completados' },
+                                { val: 'pending', label: 'Pendientes' },
+                                { val: 'processing', label: 'Procesando' },
+                                { val: 'error', label: 'Errores' },
+                              ].map(({ val, label }) => (
+                                <button
+                                  key={val}
+                                  onClick={() => { setStatusFilter(val as typeof statusFilter); setIsMobileStatusOpen(false); }}
+                                  className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${statusFilter === val ? 'font-bold text-success bg-success/5' : 'text-on-surface'}`}
+                                >
+                                  <span>{label}</span>
+                                  {statusFilter === val && <span className="material-symbols-outlined text-[14px] text-success">check</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Indicador de filtros activos */}
+                        {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all') && (
+                          <button
+                            onClick={() => { setStatusFilter('all'); setDocTypeFilter('all'); setDateFilter('all'); }}
+                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-error/30 bg-error/10 text-error text-[10px] font-bold whitespace-nowrap hover:bg-error/15 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">filter_alt_off</span>
+                            Limpiar
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Listado de Tarjetas Premium en Vista Móvil */}
                     <div className="block md:hidden space-y-3 p-4">
