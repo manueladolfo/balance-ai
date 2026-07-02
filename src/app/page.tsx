@@ -159,6 +159,17 @@ export default function Home() {
     ? (((totalDocsCount - errorDocsCount) / totalDocsCount) * 100).toFixed(1) 
     : '100.0';
   const estimatedTimeSaved = (totalCompletedDocs * 0.1).toFixed(1); // 0.1 hours (6 mins) saved per processed file
+  const documentsInProcess = documents.filter(d => d.status === 'pending' || d.status === 'processing').length;
+  const successRate = totalDocsCount > 0 ? (totalCompletedDocs / totalDocsCount) * 100 : 0;
+  const totalAmountProcessed = documents
+    .filter(d => d.status === 'completed')
+    .reduce((sum, doc) => {
+      const entry = entries.find(e => e.document_id === doc.id);
+      if (entry) {
+        return sum + entry.lines.filter(l => l.line_type === 'debe').reduce((s, l) => s + l.amount, 0);
+      }
+      return sum + 0;
+    }, 0);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing' | 'completed' | 'error'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | '30days' | '60days' | '90days' | 'custom'>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -3052,7 +3063,7 @@ export default function Home() {
             <div className="flex-1 flex flex-col gap-4 md:gap-8 overflow-y-auto pb-16 md:pb-8 min-h-0 pt-4">
               
               {/* Fila de Tarjetas KPI - Más altas, espaciadas y con sombras sutiles */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 shrink-0">
+              <div className="hidden md:grid md:grid-cols-3 gap-4 md:gap-8 shrink-0">
                 {/* KPI 1 */}
                 <div className="bg-surface p-6 rounded-sm border border-outline-variant/10 text-left flex flex-col justify-between h-[96px] shadow-precision">
                   <span className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Documentos Procesados</span>
@@ -3081,8 +3092,113 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Dashboard Premium Móvil ( block md:hidden ) */}
+              <div className="block md:hidden space-y-4 px-1 select-none">
+                
+                {/* Cabecera del Dashboard Móvil: Saludo y Drive Status */}
+                <div className="flex items-center justify-between bg-surface/65 backdrop-blur-md border border-outline-variant/10 p-4 rounded-sm shadow-precision text-left">
+                  <div className="flex items-center gap-3">
+                    {/* Avatar elegante */}
+                    <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
+                      {googleDriveToken && googleUserEmail ? (
+                        <div className="w-full h-full bg-secondary flex items-center justify-center text-white font-bold text-sm uppercase">
+                          {googleUserName ? googleUserName.charAt(0) : googleUserEmail.charAt(0)}
+                        </div>
+                      ) : (
+                        <span className="material-symbols-outlined text-primary text-lg">person</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-primary">
+                        {googleDriveToken && googleUserName ? `Hola, ${googleUserName.split(' ')[0]}` : '¡Hola Contable!'}
+                      </span>
+                      <span className="text-[9px] text-on-surface-variant font-medium">Bienvenido a tu panel de control</span>
+                    </div>
+                  </div>
+
+                  {/* Drive Status Badge */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-high rounded-full border border-outline-variant/5">
+                    <span className="material-symbols-outlined text-[12px] text-secondary">add_to_drive</span>
+                    <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface-variant">
+                      {googleDriveToken ? 'Drive Conectado' : 'Drive Inactivo'}
+                    </span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${googleDriveToken ? 'bg-success animate-pulse' : 'bg-on-surface-variant/30'}`} />
+                  </div>
+                </div>
+
+                {/* Cuadrícula de KPIs Móvil Premium (Glassmorphism & Micro-animations) */}
+                <div className="grid grid-cols-3 gap-2.5">
+                  
+                  {/* Card 1: Documentos Procesados (Total Éxito) */}
+                  <div className="bg-surface/65 backdrop-blur-md border border-outline-variant/10 p-3 rounded-sm shadow-precision flex flex-col items-center justify-between text-center relative overflow-hidden group min-h-[96px]">
+                    <span className="text-[8px] font-bold text-on-surface-variant uppercase tracking-wider block">Procesados</span>
+                    
+                    {/* Círculo SVG animado */}
+                    <div className="relative w-10 h-10 my-1 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        <path
+                          className="text-outline-variant/15"
+                          strokeWidth="2.5"
+                          stroke="currentColor"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path
+                          className="text-primary transition-all duration-1000 ease-out"
+                          strokeWidth="2.5"
+                          strokeDasharray={`${successRate}, 100`}
+                          strokeLinecap="round"
+                          stroke="currentColor"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                      </svg>
+                      <span className="absolute text-[9px] font-bold font-mono text-primary">
+                        {totalCompletedDocs}
+                      </span>
+                    </div>
+                    
+                    <span className="text-[7px] text-on-surface-variant font-semibold tracking-wide">
+                      {successRate.toFixed(0)}% Éxito
+                    </span>
+                  </div>
+
+                  {/* Card 2: Operaciones en Proceso (Cola de Carga) */}
+                  <div className="bg-surface/65 backdrop-blur-md border border-outline-variant/10 p-3 rounded-sm shadow-precision flex flex-col items-center justify-between text-center relative overflow-hidden min-h-[96px]">
+                    <span className="text-[8px] font-bold text-on-surface-variant uppercase tracking-wider block">En Cola</span>
+                    
+                    {/* Indicador con pulso dinámico (ping verde/ámbar) */}
+                    <div className="relative my-2.5 flex items-center justify-center">
+                      <span className="absolute inline-flex h-6 w-6 rounded-full bg-secondary/15 animate-ping" />
+                      <span className="relative inline-flex rounded-full h-5 w-5 bg-secondary/10 border border-secondary/20 items-center justify-center">
+                        <span className="material-symbols-outlined text-[12px] text-secondary animate-spin-slow">sync</span>
+                      </span>
+                    </div>
+
+                    <span className="text-[8px] font-bold font-mono text-secondary">
+                      {documentsInProcess} Activo{documentsInProcess !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {/* Card 3: Volumen Contabilizado (Importe Total) */}
+                  <div className="bg-surface/65 backdrop-blur-md border border-outline-variant/10 p-3 rounded-sm shadow-precision flex flex-col items-center justify-between text-center relative overflow-hidden min-h-[96px]">
+                    <span className="text-[8px] font-bold text-on-surface-variant uppercase tracking-wider block">Total Diario</span>
+                    
+                    {/* Icono de gráfica ascendente o tarjeta */}
+                    <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center my-1 text-success border border-success/15 animate-bounce-slow">
+                      <span className="material-symbols-outlined text-[16px] material-symbols-fill">trending_up</span>
+                    </div>
+
+                    <span className="text-[9px] font-bold font-mono text-primary truncate max-w-full">
+                      €{totalAmountProcessed.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Fila de Filtros y Acciones - Centrado y limpio en mobile */}
-              <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
+              <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 w-full sm:w-auto">
                   {/* Status Filter Dropdown */}
                   <div className="relative">
@@ -3246,6 +3362,66 @@ export default function Home() {
                       </>
                     )}
                   </div>
+
+                  {/* Document Type Filter Dropdown */}
+                  <div className="relative font-sans">
+                    <button 
+                      onClick={() => setIsDocTypeFilterDropdownOpen(!isDocTypeFilterDropdownOpen)}
+                      className={`flex items-center gap-2 px-4 py-1.5 border rounded-sm text-xs font-semibold transition-all focus:outline-none focus:ring-0 ${
+                        docTypeFilter !== 'all' 
+                          ? 'bg-secondary/10 border-secondary/30 text-secondary font-bold' 
+                          : 'border-outline-variant/10 text-on-surface hover:bg-surface-container-low'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[14px]">folder_open</span>
+                      {docTypeFilter === 'all' ? 'Tipo: Todos' : [
+                        { value: 'all', label: 'Todos los tipos' },
+                        { value: 'Factura proveedor', label: 'Factura Prov' },
+                        { value: 'Facturas cliente', label: 'Factura Cli' },
+                        { value: 'Tickets simplificados', label: 'Ticket / Simplificado' },
+                        { value: 'Extractos bancarios', label: 'Extracto Bancario' },
+                        { value: 'Recibos', label: 'Recibo / Justificante' },
+                        { value: 'Nominas', label: 'Nómina' },
+                        { value: 'Seguros sociales', label: 'Seguros Sociales' },
+                        { value: 'Liquidación de impuestos', label: 'Liquidación Impuestos' },
+                        { value: 'Escrituras-contratos', label: 'Escritura / Contrato' },
+                        { value: 'Otros', label: 'Otros / Varios' }
+                      ].find(c => c.value === docTypeFilter)?.label}
+                      <span className="material-symbols-outlined text-[12px] ml-0.5">expand_more</span>
+                    </button>
+
+                    {isDocTypeFilterDropdownOpen && (
+                      <>
+                        <div 
+                          onClick={() => setIsDocTypeFilterDropdownOpen(false)}
+                          className="fixed inset-0 z-10"
+                        />
+                        <div className="absolute left-0 mt-2 w-56 bg-surface border border-outline-variant/10 rounded-sm shadow-md z-20 py-1 max-h-64 overflow-y-auto custom-scrollbar text-left">
+                          {[
+                            { value: 'all', label: 'Todos los tipos' },
+                            { value: 'Factura proveedor', label: 'Factura Proveedor' },
+                            { value: 'Facturas cliente', label: 'Factura Cliente' },
+                            { value: 'Tickets simplificados', label: 'Ticket / Simplificado' },
+                            { value: 'Extractos bancarios', label: 'Extracto Bancario' },
+                            { value: 'Recibos', label: 'Recibo / Justificante' },
+                            { value: 'Nominas', label: 'Nómina' },
+                            { value: 'Seguros sociales', label: 'Seguros Sociales' },
+                            { value: 'Liquidación de impuestos', label: 'Liquidación Impuestos' },
+                            { value: 'Escrituras-contratos', label: 'Escritura / Contrato' },
+                            { value: 'Otros', label: 'Otros / Varios' }
+                          ].map((cat) => (
+                            <button 
+                              key={cat.value}
+                              onClick={() => { setDocTypeFilter(cat.value); setIsDocTypeFilterDropdownOpen(false); }}
+                              className={`w-full px-4 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors text-left flex items-center justify-between ${docTypeFilter === cat.value ? 'font-bold bg-surface-container-low text-secondary' : ''}`}
+                            >
+                              <span>{cat.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
                   {/* Botón Eliminar Seleccionados */}
@@ -3366,12 +3542,24 @@ export default function Home() {
                                   <div className="flex flex-col text-left">
                                     {(() => {
                                       const { type: displayType, description: displayDesc } = getDocumentDisplayInfo(doc);
+                                      let badgeColor = 'bg-primary/10 text-primary border-primary/20';
+                                      if (displayType.includes('proveedor')) {
+                                        badgeColor = 'bg-error/10 text-error border-error/20';
+                                      } else if (displayType.includes('cliente')) {
+                                        badgeColor = 'bg-success/10 text-success border-success/20';
+                                      } else if (displayType.includes('bancario') || displayType.includes('Extracto')) {
+                                        badgeColor = 'bg-secondary/10 text-secondary border-secondary/20';
+                                      } else if (displayType.includes('Nómina') || displayType.includes('Nomina')) {
+                                        badgeColor = 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+                                      } else if (displayType.includes('impuestos')) {
+                                        badgeColor = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+                                      }
                                       return (
                                         <>
                                           <div className="flex items-center gap-1.5 flex-wrap">
                                             <span className="font-semibold text-primary">{doc.name}</span>
                                             {/* Subtype Badge */}
-                                            <span className="px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/15">
+                                            <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider border ${badgeColor}`}>
                                               {displayType}
                                             </span>
                                             {/* Insignias de Almacenamiento */}
@@ -5131,6 +5319,16 @@ export default function Home() {
                         <h5 className="font-bold text-on-surface text-xs">Exportación a Sage ContaPlus</h5>
                         <p className="text-[11px]">
                           Selecciona los asientos validados en la tabla y expórtalos en archivos ZIP listos para importar directamente en Sage ContaPlus (versiones 2008 o 2011).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 animate-fade-in">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">7</div>
+                      <div>
+                        <h5 className="font-bold text-on-surface text-xs">Categorización y Etiquetas de Colores</h5>
+                        <p className="text-[11px]">
+                          Los documentos se clasifican automáticamente en una de las <strong className="font-semibold text-primary">10 categorías contables</strong> (Factura Proveedor, Factura Cliente, Ticket, Extracto Bancario, Recibo, Nómina, Seguros Sociales, Liquidación de Impuestos, Escritura/Contrato, Otros). Cada categoría posee una etiqueta de color específica para agilizar su identificación visual, y puedes usar el nuevo <strong className="font-semibold text-secondary">Filtro por Tipo</strong> para segmentar tu historial al instante tanto en móvil como en escritorio.
                         </p>
                       </div>
                     </div>
