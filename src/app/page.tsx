@@ -177,6 +177,7 @@ export default function Home() {
   const [availableLocalDocIds, setAvailableLocalDocIds] = useState<string[]>([]);
   const [googleDriveToken, setGoogleDriveToken] = useState<string | null>(null);
   const [googleUserEmail, setGoogleUserEmail] = useState<string | null>(null);
+  const [googleUserName, setGoogleUserName] = useState<string | null>(null);
 
   // Load storage settings and Google Drive session on mount
   useEffect(() => {
@@ -188,8 +189,10 @@ export default function Home() {
       
       const savedToken = localStorage.getItem('balance_ai_google_token');
       const savedEmail = localStorage.getItem('balance_ai_google_email');
+      const savedName = localStorage.getItem('balance_ai_google_name');
       if (savedToken) setGoogleDriveToken(savedToken);
       if (savedEmail) setGoogleUserEmail(savedEmail);
+      if (savedName) setGoogleUserName(savedName);
 
       // Force 'gemini' as provider to avoid billing locks
       setActiveAiProvider('gemini');
@@ -212,12 +215,16 @@ export default function Home() {
       if (event.origin !== window.location.origin) return;
       
       if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-        const { accessToken, userEmail } = event.data.payload;
+        const { accessToken, userEmail, userName } = event.data.payload;
         setGoogleDriveToken(accessToken);
         setGoogleUserEmail(userEmail);
+        setGoogleUserName(userName || null);
         localStorage.setItem('balance_ai_google_token', accessToken);
         localStorage.setItem('balance_ai_google_email', userEmail);
-        showToast(`Google Drive conectado correctamente: ${userEmail}`, 'success');
+        if (userName) {
+          localStorage.setItem('balance_ai_google_name', userName);
+        }
+        showToast(`Google Drive conectado correctamente: ${userName || userEmail}`, 'success');
       }
     };
 
@@ -1020,7 +1027,7 @@ export default function Home() {
 
         const driveFormData = new FormData();
         driveFormData.append('file', file);
-        driveFormData.append('userName', googleUserEmail || 'default-user');
+        driveFormData.append('userName', googleUserName || googleUserEmail || 'default-user');
 
         const driveUploadRes = await fetch('/api/upload/drive', {
           method: 'POST',
@@ -1235,7 +1242,7 @@ export default function Home() {
 
             const driveFormData = new FormData();
             driveFormData.append('file', currentItem.file);
-            driveFormData.append('userName', googleUserEmail || 'default-user');
+            driveFormData.append('userName', googleUserName || googleUserEmail || 'default-user');
 
             const driveUploadRes = await fetch('/api/upload/drive', {
               method: 'POST',
@@ -4421,14 +4428,16 @@ export default function Home() {
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2 bg-secondary/5 px-3 py-2 border border-secondary/10 rounded-sm">
                               <span className="material-symbols-outlined text-secondary text-sm">cloud_done</span>
-                              <span className="text-[11px] font-semibold text-primary">Conectado como: <strong className="text-secondary">{googleUserEmail}</strong></span>
+                              <span className="text-[11px] font-semibold text-primary">Conectado como: <strong className="text-secondary">{googleUserName ? `${googleUserName} (${googleUserEmail})` : googleUserEmail}</strong></span>
                             </div>
                             <button
                               onClick={() => {
                                 setGoogleDriveToken(null);
                                 setGoogleUserEmail(null);
+                                setGoogleUserName(null);
                                 localStorage.removeItem('balance_ai_google_token');
                                 localStorage.removeItem('balance_ai_google_email');
+                                localStorage.removeItem('balance_ai_google_name');
                                 showToast('Cuenta de Google Drive desvinculada con éxito.', 'success');
                               }}
                               className="px-3 py-1.5 border border-outline-variant/20 hover:border-error/30 text-on-surface-variant hover:text-error text-[10px] font-bold rounded-sm active:scale-[0.98] transition-all flex items-center gap-1 focus:outline-none w-max"
