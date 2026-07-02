@@ -4797,9 +4797,9 @@ export default function Home() {
                     <div className="flex gap-4">
                       <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">4</div>
                       <div>
-                        <h5 className="font-bold text-on-surface text-xs">Análisis Inteligente y Generación de Asientos</h5>
+                        <h5 className="font-bold text-on-surface text-xs">Análisis Inteligente con OCR Optimizado</h5>
                         <p className="text-[11px]">
-                          Nuestra IA procesará la factura de forma autónoma y generará el asiento del libro de diario totalmente equilibrado, sugiriendo la creación de cuentas contables nuevas si no existían en tu catálogo.
+                          La IA analiza tus facturas de forma autónoma. Puedes configurar en <em>Ajustes</em> el <strong>Motor de Lectura (OCR)</strong>: el modo <em>Automático (Híbrido)</em> procesa PDFs digitales localmente y aplica visión en la nube para fotos para ahorrar tokens; el modo <em>Local Gratuito</em> procesa todo en tu propio servidor reduciendo costes a cero.
                         </p>
                       </div>
                     </div>
