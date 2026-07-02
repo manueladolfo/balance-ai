@@ -3111,7 +3111,7 @@ export default function Home() {
                     
                     <div className="flex flex-col">
                       <span className="text-xs font-bold text-primary">
-                        {googleDriveToken && googleUserName ? `Hola, ${googleUserName.split(' ')[0]}` : '¡Hola Contable!'}
+                        {`Hola, ${(googleUserName || activeUser.name || 'Usuario').split(' ')[0]}`}
                       </span>
                       <span className="text-[9px] text-on-surface-variant font-medium">Bienvenido a tu panel de control</span>
                     </div>
