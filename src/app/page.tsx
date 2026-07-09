@@ -3087,32 +3087,80 @@ export default function Home() {
           {companies.length > 0 && activeTab === 'dashboard' && (
             <div className="flex-1 flex flex-col gap-4 md:gap-8 overflow-y-auto pb-16 md:pb-8 min-h-0 pt-4">
               
-              {/* Fila de Tarjetas KPI - Más altas, espaciadas y con sombras sutiles */}
-              <div className="hidden md:grid md:grid-cols-3 gap-4 md:gap-8 shrink-0">
-                {/* KPI 1 */}
-                <div className="bg-surface p-6 rounded-sm border border-outline-variant/10 text-left flex flex-col justify-between h-[96px] shadow-precision">
-                  <span className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Documentos Procesados</span>
-                  <div className="flex items-baseline gap-xs">
-                    <span className="text-xl font-bold font-mono-data text-primary">{totalCompletedDocs}</span>
-                    <span className="text-[10px] font-bold text-secondary">Total</span>
+              {/* Fila de Tarjetas KPI Desktop/Tablet - Animadas, elegantes y alineadas con la estética móvil */}
+              <div className="hidden md:grid md:grid-cols-3 gap-6 md:gap-8 shrink-0 select-none">
+                
+                {/* Card 1: Documentos Procesados (Total Éxito con círculo SVG animado) */}
+                <div className="bg-surface p-5 rounded-sm border border-outline-variant/10 flex items-center justify-between h-[104px] shadow-precision relative overflow-hidden group hover:border-outline-variant/35 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col justify-between h-full text-left">
+                    <span className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Procesados</span>
+                    <div className="flex flex-col mt-2">
+                      <span className="text-[9px] text-on-surface-variant font-semibold tracking-wide">
+                        {successRate.toFixed(0)}% Éxito de IA
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Círculo SVG animado a la derecha */}
+                  <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        className="text-outline-variant/10"
+                        strokeWidth="2.5"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      <path
+                        className="text-primary transition-all duration-1000 ease-out"
+                        strokeWidth="2.5"
+                        strokeDasharray={`${successRate}, 100`}
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <span className="absolute text-sm font-bold font-mono text-primary">
+                      {totalCompletedDocs}
+                    </span>
                   </div>
                 </div>
 
-                {/* KPI 2 */}
-                <div className="bg-surface p-6 rounded-sm border border-outline-variant/10 text-left flex flex-col justify-between h-[96px] shadow-precision">
-                  <span className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Precisión de IA</span>
-                  <div className="flex items-baseline gap-xs">
-                    <span className="text-xl font-bold font-mono-data text-[#006d37]">{aiPrecisionPercentage}%</span>
-                    <span className="text-[9px] text-on-surface-variant font-semibold">Tasa de éxito</span>
+                {/* Card 2: En Cola (Operaciones activas con pulso animado) */}
+                <div className="bg-surface p-5 rounded-sm border border-outline-variant/10 flex items-center justify-between h-[104px] shadow-precision relative overflow-hidden group hover:border-outline-variant/35 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col justify-between h-full text-left">
+                    <span className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">En Cola</span>
+                    <div className="flex flex-col mt-2">
+                      <span className="text-[9px] text-on-surface-variant font-semibold">
+                        {documentsInProcess} Activo{documentsInProcess !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Animación de pulso y spinner */}
+                  <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
+                    <span className="absolute inline-flex h-10 w-10 rounded-full bg-secondary/10 animate-ping" />
+                    <span className="relative inline-flex rounded-full h-8 w-8 bg-secondary/5 border border-secondary/15 items-center justify-center">
+                      <span className="material-symbols-outlined text-[18px] text-secondary animate-spin-slow">sync</span>
+                    </span>
                   </div>
                 </div>
 
-                {/* KPI 3 */}
-                <div className="bg-surface p-6 rounded-sm border border-outline-variant/10 text-left flex flex-col justify-between h-[96px] shadow-precision">
-                  <span className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Tiempo Ahorrado</span>
-                  <div className="flex items-baseline gap-xs">
-                    <span className="text-xl font-bold font-mono-data text-primary">{estimatedTimeSaved}h</span>
-                    <span className="text-[9px] text-on-surface-variant font-semibold">Acumulado</span>
+                {/* Card 3: Volumen Diario (Importe total con animación de tendencia) */}
+                <div className="bg-surface p-5 rounded-sm border border-outline-variant/10 flex items-center justify-between h-[104px] shadow-precision relative overflow-hidden group hover:border-outline-variant/35 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col justify-between h-full text-left min-w-0">
+                    <span className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Total Diario</span>
+                    <div className="flex flex-col mt-2 min-w-0">
+                      <span className="text-sm font-bold font-mono text-primary truncate">
+                        €{totalAmountProcessed.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Icono de tendencia animado */}
+                  <div className="w-10 h-10 rounded-full bg-success/5 flex items-center justify-center text-success border border-success/15 animate-bounce-slow shrink-0">
+                    <span className="material-symbols-outlined text-[20px] material-symbols-fill">trending_up</span>
                   </div>
                 </div>
               </div>
@@ -3226,18 +3274,26 @@ export default function Home() {
               <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
                 <div className="flex items-center justify-center gap-2 flex-wrap">
                   {/* ── PILL Seleccionar Todo (Desktop/Tablet) ── */}
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-outline-variant/20 bg-surface text-on-surface-variant text-[11px] font-semibold hover:bg-surface-container-low transition-colors">
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all duration-200 cursor-pointer ${
+                      selectedDocIds.length > 0
+                        ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm font-bold'
+                        : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                    }`}
+                    onClick={() => {
+                      const allSelected = selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0;
+                      const fakeEvent = { target: { checked: !allSelected } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                      handleSelectAll(fakeEvent);
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0}
                       onChange={handleSelectAll}
-                      className="rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3.5 w-3.5 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3.5 w-3.5 cursor-pointer animate-none"
                     />
-                    <span className="cursor-pointer select-none" onClick={() => {
-                      const allSelected = selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0;
-                      const fakeEvent = { target: { checked: !allSelected } } as React.ChangeEvent<HTMLInputElement>;
-                      handleSelectAll(fakeEvent);
-                    }}>
+                    <span className="select-none">
                       {selectedDocIds.length > 0 ? `${selectedDocIds.length} sel.` : 'Todos'}
                     </span>
                   </div>
@@ -3246,9 +3302,9 @@ export default function Home() {
                   <div className="relative">
                     <button
                       onClick={() => { setIsDateDropdownOpen(!isDateDropdownOpen); setIsFilterDropdownOpen(false); setIsDocTypeFilterDropdownOpen(false); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
                         dateFilter !== 'all'
-                          ? 'bg-primary text-white border-primary shadow-sm'
+                          ? 'bg-primary/10 text-primary border-primary/35 shadow-sm font-bold'
                           : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                       }`}
                     >
@@ -3308,9 +3364,9 @@ export default function Home() {
                   <div className="relative">
                     <button
                       onClick={() => { setIsDocTypeFilterDropdownOpen(!isDocTypeFilterDropdownOpen); setIsFilterDropdownOpen(false); setIsDateDropdownOpen(false); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
                         docTypeFilter !== 'all'
-                          ? 'bg-secondary text-white border-secondary shadow-sm'
+                          ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm font-bold'
                           : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                       }`}
                     >
@@ -3356,9 +3412,9 @@ export default function Home() {
                   <div className="relative">
                     <button
                       onClick={() => { setIsFilterDropdownOpen(!isFilterDropdownOpen); setIsDateDropdownOpen(false); setIsDocTypeFilterDropdownOpen(false); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
                         statusFilter !== 'all'
-                          ? 'bg-success text-white border-success shadow-sm'
+                          ? 'bg-success/10 text-success border-success/35 shadow-sm font-bold'
                           : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                       }`}
                     >
@@ -3398,14 +3454,19 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Limpiar filtros (Desktop) */}
-                  {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all') && (
+                  {/* ── Botón Limpiar Todo (Desktop/Tablet) ── */}
+                  {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all' || selectedDocIds.length > 0) && (
                     <button
-                      onClick={() => { setStatusFilter('all'); setDocTypeFilter('all'); setDateFilter('all'); }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-error/30 bg-error/10 text-error text-[10px] font-bold whitespace-nowrap hover:bg-error/15 transition-colors"
+                      onClick={() => {
+                        setStatusFilter('all');
+                        setDocTypeFilter('all');
+                        setDateFilter('all');
+                        setSelectedDocIds([]);
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-error/25 bg-error/5 text-error text-[11px] font-bold whitespace-nowrap hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in"
                     >
-                      <span className="material-symbols-outlined text-[12px]">filter_alt_off</span>
-                      Limpiar
+                      <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
+                      Limpiar Todo
                     </button>
                   )}
                 </div>
