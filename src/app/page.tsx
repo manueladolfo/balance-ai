@@ -3692,38 +3692,27 @@ export default function Home() {
                     </div>
 
                     {/* Filtros Pill Móvil */}
-                    <div className="block md:hidden bg-surface px-4 py-2.5 border border-outline-variant/10 rounded-lg shadow-sm mx-4 mt-2 mb-2">
-                      <div className="flex items-center gap-2 flex-wrap pb-0.5">
+                    <div className="block md:hidden bg-surface px-4 py-2 border border-outline-variant/10 rounded-lg shadow-sm mx-4 mt-2 mb-2">
+                      <div className="flex items-center gap-3">
 
                         {/* ── PILL 1: Fecha ── */}
                         <div className="relative shrink-0">
                           <button
                             onClick={() => { setIsMobileDateOpen(!isMobileDateOpen); setIsMobileStatusOpen(false); setIsMobileTypeOpen(false); setIsExportDropdownOpen(false); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
+                            title={dateFilter === 'all' ? 'Filtrar por fecha' : `Fecha activa: ${dateFilter}`}
+                            className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
                               dateFilter !== 'all'
-                                ? 'bg-primary/10 text-primary border-primary/35 shadow-sm font-bold'
+                                ? 'bg-primary/10 text-primary border-primary/35 shadow-sm'
                                 : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                           >
-                            <span className="material-symbols-outlined text-[13px]">calendar_month</span>
-                            {dateFilter === 'all' && 'Fecha'}
-                            {dateFilter === '30days' && 'Últ. 30 días'}
-                            {dateFilter === '60days' && 'Últ. 60 días'}
-                            {dateFilter === '90days' && 'Últ. 90 días'}
-                            {dateFilter === 'custom' && 'Personalizado'}
-                            {dateFilter !== 'all' && (
-                              <span
-                                onClick={(e) => { e.stopPropagation(); setDateFilter('all'); setIsMobileDateOpen(false); }}
-                                className="material-symbols-outlined text-[11px] opacity-80"
-                              >close</span>
-                            )}
-                            {dateFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
+                            <span className="material-symbols-outlined text-[15px]">calendar_month</span>
                           </button>
 
                           {isMobileDateOpen && (
                             <>
                             <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-45" />
-                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los documentos' },
                                 { val: '30days', label: 'Últimos 30 días' },
@@ -3749,27 +3738,20 @@ export default function Home() {
                         <div className="relative shrink-0">
                           <button
                             onClick={() => { setIsMobileTypeOpen(!isMobileTypeOpen); setIsMobileStatusOpen(false); setIsMobileDateOpen(false); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
+                            title={docTypeFilter === 'all' ? 'Filtrar por tipo' : `Tipo activo: ${getDocTypeLabel(docTypeFilter)}`}
+                            className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
                               docTypeFilter !== 'all'
-                                ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm font-bold'
+                                ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm'
                                 : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                           >
-                            <span className="material-symbols-outlined text-[13px]">folder_open</span>
-                            {docTypeFilter === 'all' ? 'Tipo' : getDocTypeLabel(docTypeFilter)}
-                            {docTypeFilter !== 'all' && (
-                              <span
-                                onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); setIsMobileTypeOpen(false); }}
-                                className="material-symbols-outlined text-[11px] opacity-80"
-                              >close</span>
-                            )}
-                            {docTypeFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
+                            <span className="material-symbols-outlined text-[15px]">folder_open</span>
                           </button>
 
                           {isMobileTypeOpen && (
                             <>
                             <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-45" />
-                            <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                            <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los tipos' },
                                 { val: 'Factura proveedor', label: 'Factura Proveedor' },
@@ -3801,31 +3783,20 @@ export default function Home() {
                         <div className="relative shrink-0">
                           <button
                             onClick={() => { setIsMobileStatusOpen(!isMobileStatusOpen); setIsMobileTypeOpen(false); setIsMobileDateOpen(false); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
+                            title={statusFilter === 'all' ? 'Filtrar por estado' : `Estado activo: ${statusFilter}`}
+                            className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
                               statusFilter !== 'all'
-                                ? 'bg-success/10 text-success border-success/35 shadow-sm font-bold'
+                                ? 'bg-success/10 text-success border-success/35 shadow-sm'
                                 : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                           >
-                            <span className="material-symbols-outlined text-[13px]">radio_button_checked</span>
-                            {statusFilter === 'all' && 'Estado'}
-                            {statusFilter === 'completed' && 'Completados'}
-                            {statusFilter === 'pending' && 'Pendientes'}
-                            {statusFilter === 'processing' && 'Procesando'}
-                            {statusFilter === 'error' && 'Errores'}
-                            {statusFilter !== 'all' && (
-                              <span
-                                onClick={(e) => { e.stopPropagation(); setStatusFilter('all'); setIsMobileStatusOpen(false); }}
-                                className="material-symbols-outlined text-[11px] opacity-80"
-                              >close</span>
-                            )}
-                            {statusFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
+                            <span className="material-symbols-outlined text-[15px]">radio_button_checked</span>
                           </button>
 
                           {isMobileStatusOpen && (
                             <>
                             <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-45" />
-                            <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                            <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos' },
                                 { val: 'completed', label: 'Completados' },
@@ -3856,10 +3827,10 @@ export default function Home() {
                               setDateFilter('all');
                               setSelectedDocIds([]);
                             }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-error/25 bg-error/5 text-error text-[10px] font-bold whitespace-nowrap hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in"
+                            title="Limpiar filtros y selección"
+                            className="flex items-center justify-center h-8 w-8 rounded-full border border-error/25 bg-error/5 text-error hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in shrink-0"
                           >
-                            <span className="material-symbols-outlined text-[12px]">filter_alt_off</span>
-                            <span>Limpiar Todo</span>
+                            <span className="material-symbols-outlined text-[15px]">filter_alt_off</span>
                           </button>
                         )}
                       </div>
