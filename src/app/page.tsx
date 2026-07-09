@@ -3680,6 +3680,10 @@ export default function Home() {
                                   <span>ContaPlus 2008 (CSV)</span>
                                   <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
                                 </button>
+                                <button onClick={() => { handleExportContaplus('2011', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                                  <span>ContaPlus 2011 (TXT)</span>
+                                  <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase">ANSI</span>
+                                </button>
                                 <button onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
                                   <span>ContaPlus 2011 (CSV)</span>
                                   <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
@@ -3693,7 +3697,7 @@ export default function Home() {
 
                     {/* Filtros Pill Móvil */}
                     <div className="block md:hidden bg-surface px-4 py-2 border border-outline-variant/10 rounded-lg shadow-sm mx-4 mt-2 mb-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between px-1">
 
                         {/* ── PILL 1: Fecha ── */}
                         <div className="relative shrink-0">
@@ -3712,7 +3716,7 @@ export default function Home() {
                           {isMobileDateOpen && (
                             <>
                             <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-45" />
-                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-80 overflow-y-auto custom-scrollbar animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los documentos' },
                                 { val: '30days', label: 'Últimos 30 días' },
@@ -3722,13 +3726,34 @@ export default function Home() {
                               ].map(({ val, label }) => (
                                 <button
                                   key={val}
-                                  onClick={() => { setDateFilter(val as typeof dateFilter); setIsMobileDateOpen(false); }}
+                                  onClick={() => {
+                                    setDateFilter(val as typeof dateFilter);
+                                    if (val !== 'custom') {
+                                      setIsMobileDateOpen(false);
+                                    }
+                                  }}
                                   className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${dateFilter === val ? 'font-bold text-primary bg-primary/5' : 'text-on-surface'}`}
                                 >
                                   <span>{label}</span>
                                   {dateFilter === val && <span className="material-symbols-outlined text-[14px] text-primary">check</span>}
                                 </button>
                               ))}
+                              {dateFilter === 'custom' && (
+                                <div className="px-3 pb-2 space-y-2 border-t border-outline-variant/5 mt-1">
+                                  <div className="space-y-1 pt-2">
+                                    <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Desde:</label>
+                                    <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Hasta:</label>
+                                    <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
+                                  </div>
+                                  <div className="flex justify-end gap-2 pt-1">
+                                    <button onClick={() => { setCustomStartDate(''); setCustomEndDate(''); setDateFilter('all'); setIsMobileDateOpen(false); }} className="text-[10px] text-on-surface-variant hover:text-primary transition-colors focus:outline-none">Limpiar</button>
+                                    <button onClick={() => setIsMobileDateOpen(false)} className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm hover:opacity-95 active:scale-95 transition-all focus:outline-none">Aplicar</button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             </>
                           )}
