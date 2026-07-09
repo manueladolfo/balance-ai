@@ -3271,7 +3271,7 @@ export default function Home() {
               </div>
 
               {/* Fila de Filtros y Acciones - Pills unificadas Desktop/Tablet */}
-              <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
+              <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-4 py-3 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
                 <div className="flex items-center justify-start gap-1.5 flex-nowrap overflow-visible pr-2">
                   {/* ── PILL Seleccionar Todo (Desktop/Tablet) ── */}
                   <div
@@ -3294,7 +3294,7 @@ export default function Home() {
                       className="rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3.5 w-3.5 cursor-pointer animate-none"
                     />
                     <span className="select-none">
-                      {selectedDocIds.length > 0 ? `Seleccionar todo (${selectedDocIds.length})` : 'Seleccionar todo'}
+                      {selectedDocIds.length > 0 ? `Sel. todo (${selectedDocIds.length})` : 'Seleccionar todo'}
                     </span>
                   </div>
 
@@ -3309,11 +3309,13 @@ export default function Home() {
                       }`}
                     >
                       <span className="material-symbols-outlined text-[13px]">calendar_month</span>
-                      {dateFilter === 'all' && 'Fecha'}
-                      {dateFilter === '30days' && 'Últ. 30 días'}
-                      {dateFilter === '60days' && 'Últ. 60 días'}
-                      {dateFilter === '90days' && 'Últ. 90 días'}
-                      {dateFilter === 'custom' && 'Personalizado'}
+                      <span className="truncate max-w-[80px] md:max-w-[90px] xl:max-w-[120px] inline-block align-middle">
+                        {dateFilter === 'all' && 'Fecha'}
+                        {dateFilter === '30days' && 'Últ. 30 días'}
+                        {dateFilter === '60days' && 'Últ. 60 días'}
+                        {dateFilter === '90days' && 'Últ. 90 días'}
+                        {dateFilter === 'custom' && 'Personalizado'}
+                      </span>
                       {dateFilter !== 'all' && (
                         <span onClick={(e) => { e.stopPropagation(); setDateFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80 ml-0.5">close</span>
                       )}
@@ -3370,7 +3372,9 @@ export default function Home() {
                       }`}
                     >
                       <span className="material-symbols-outlined text-[13px]">folder_open</span>
-                      {docTypeFilter === 'all' ? 'Tipo' : getDocTypeLabel(docTypeFilter)}
+                      <span className="truncate max-w-[85px] md:max-w-[95px] xl:max-w-[125px] inline-block align-middle" title={docTypeFilter === 'all' ? 'Tipo' : getDocTypeLabel(docTypeFilter)}>
+                        {docTypeFilter === 'all' ? 'Tipo' : getDocTypeLabel(docTypeFilter)}
+                      </span>
                       {docTypeFilter !== 'all' && (
                         <span onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80 ml-0.5">close</span>
                       )}
@@ -3417,11 +3421,13 @@ export default function Home() {
                       }`}
                     >
                       <span className="material-symbols-outlined text-[13px]">radio_button_checked</span>
-                      {statusFilter === 'all' && 'Estado'}
-                      {statusFilter === 'pending' && 'Pendientes'}
-                      {statusFilter === 'processing' && 'Procesando'}
-                      {statusFilter === 'completed' && 'Completados'}
-                      {statusFilter === 'error' && 'Errores'}
+                      <span className="truncate max-w-[80px] md:max-w-[90px] xl:max-w-[120px] inline-block align-middle">
+                        {statusFilter === 'all' && 'Estado'}
+                        {statusFilter === 'pending' && 'Pendientes'}
+                        {statusFilter === 'processing' && 'Procesando'}
+                        {statusFilter === 'completed' && 'Completados'}
+                        {statusFilter === 'error' && 'Errores'}
+                      </span>
                       {statusFilter !== 'all' && (
                         <span onClick={(e) => { e.stopPropagation(); setStatusFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80 ml-0.5">close</span>
                       )}
