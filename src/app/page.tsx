@@ -2993,7 +2993,7 @@ export default function Home() {
             <div className="h-6 w-px bg-outline-variant/15"></div>
             
             {/* User Profile Info - Solo Avatar Interactivo */}
-            <div className="relative">
+            <div className="hidden md:block md:relative">
               <button 
                 onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                 className="w-8 h-8 rounded-full bg-primary-container hover:opacity-90 transition-all flex items-center justify-center overflow-hidden focus:outline-none border border-outline-variant/10"
@@ -3522,6 +3522,232 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Botón Exportar ContaPlus + Eliminar en móvil */}
+              <div className="block md:hidden flex items-center justify-between gap-2 px-4 py-2.5 bg-surface border border-outline-variant/10 rounded-lg shadow-sm mx-4 mt-3">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0}
+                    onChange={handleSelectAll}
+                    className="rounded-sm border-outline-variant/20 text-secondary focus:ring-secondary/30 h-3.5 w-3.5"
+                  />
+                  <span className="text-[9px] text-on-surface-variant font-semibold">
+                    {selectedDocIds.length > 0 ? `${selectedDocIds.length} seleccionado${selectedDocIds.length > 1 ? 's' : ''}` : 'Seleccionar todo'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {selectedDocIds.length > 0 && (
+                    <button
+                      onClick={handleDeleteSelectedDocs}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-error/10 text-error border border-error/20 rounded-full text-[10px] font-bold transition-all focus:outline-none"
+                    >
+                      <span className="material-symbols-outlined text-[11px]">delete</span>
+                      Eliminar
+                    </button>
+                  )}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                      disabled={selectedDocIds.length === 0}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-secondary text-white rounded-full text-[10px] font-bold transition-all disabled:opacity-40 disabled:pointer-events-none focus:outline-none"
+                    >
+                      <span className="material-symbols-outlined text-[11px]">download_for_offline</span>
+                      ContaPlus ({selectedDocIds.length})
+                      <span className="material-symbols-outlined text-[10px]">expand_more</span>
+                    </button>
+                    {isExportDropdownOpen && selectedDocIds.length > 0 && (
+                      <>
+                        <div onClick={() => setIsExportDropdownOpen(false)} className="fixed inset-0 z-40" />
+                        <div className="absolute right-0 mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                          <button onClick={() => { handleExportContaplus('2008', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2008 (TXT)</span>
+                            <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">ANSI</span>
+                          </button>
+                          <button onClick={() => { handleExportContaplus('2008', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2008 (CSV)</span>
+                            <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">CSV</span>
+                          </button>
+                          <button onClick={() => { handleExportContaplus('2011', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2011 (TXT)</span>
+                            <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">ANSI</span>
+                          </button>
+                          <button onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+                            <span>ContaPlus 2011 (CSV)</span>
+                            <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider shrink-0">CSV</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filtros Pill Móvil */}
+              <div className="block md:hidden bg-surface px-4 py-2 border border-outline-variant/10 rounded-lg shadow-sm mx-4 mt-2 mb-2">
+                <div className="flex items-center justify-between px-1">
+
+                  {/* ── PILL 1: Fecha ── */}
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={() => { setIsMobileDateOpen(!isMobileDateOpen); setIsMobileStatusOpen(false); setIsMobileTypeOpen(false); setIsExportDropdownOpen(false); }}
+                      title={dateFilter === 'all' ? 'Filtrar por fecha' : `Fecha activa: ${dateFilter}`}
+                      className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
+                        dateFilter !== 'all'
+                          ? 'bg-primary/10 text-primary border-primary/35 shadow-sm'
+                          : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">calendar_month</span>
+                    </button>
+
+                    {isMobileDateOpen && (
+                      <>
+                      <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-45" />
+                      <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-80 overflow-y-auto custom-scrollbar animate-fade-in">
+                        {[
+                          { val: 'all', label: 'Todos los documentos' },
+                          { val: '30days', label: 'Últimos 30 días' },
+                          { val: '60days', label: 'Últimos 60 días' },
+                          { val: '90days', label: 'Últimos 90 días' },
+                          { val: 'custom', label: 'Rango personalizado…' },
+                        ].map(({ val, label }) => (
+                          <button
+                            key={val}
+                            onClick={() => {
+                              setDateFilter(val as typeof dateFilter);
+                              if (val !== 'custom') {
+                                setIsMobileDateOpen(false);
+                              }
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${dateFilter === val ? 'font-bold text-primary bg-primary/5' : 'text-on-surface'}`}
+                          >
+                            <span>{label}</span>
+                            {dateFilter === val && <span className="material-symbols-outlined text-[14px] text-primary">check</span>}
+                          </button>
+                        ))}
+                        {dateFilter === 'custom' && (
+                          <div className="px-3 pb-2 space-y-2 border-t border-outline-variant/5 mt-1">
+                            <div className="space-y-1 pt-2">
+                              <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Desde:</label>
+                              <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Hasta:</label>
+                              <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-1">
+                              <button onClick={() => { setCustomStartDate(''); setCustomEndDate(''); setDateFilter('all'); setIsMobileDateOpen(false); }} className="text-[10px] text-on-surface-variant hover:text-primary transition-colors focus:outline-none">Limpiar</button>
+                              <button onClick={() => setIsMobileDateOpen(false)} className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm hover:opacity-95 active:scale-95 transition-all focus:outline-none">Aplicar</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* ── PILL 2: Tipo de Documento ── */}
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={() => { setIsMobileTypeOpen(!isMobileTypeOpen); setIsMobileStatusOpen(false); setIsMobileDateOpen(false); }}
+                      title={docTypeFilter === 'all' ? 'Filtrar por tipo' : `Tipo activo: ${getDocTypeLabel(docTypeFilter)}`}
+                      className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
+                        docTypeFilter !== 'all'
+                          ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm'
+                          : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">folder_open</span>
+                    </button>
+
+                    {isMobileTypeOpen && (
+                      <>
+                      <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-45" />
+                      <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                        {[
+                          { val: 'all', label: 'Todos los tipos' },
+                          { val: 'Factura proveedor', label: 'Factura Proveedor' },
+                          { val: 'Facturas cliente', label: 'Factura Cliente' },
+                          { val: 'Tickets simplificados', label: 'Ticket / Simplificado' },
+                          { val: 'Extractos bancarios', label: 'Extracto Bancario' },
+                          { val: 'Recibos', label: 'Recibo / Justificante' },
+                          { val: 'Nominas', label: 'Nómina' },
+                          { val: 'Seguros sociales', label: 'Seguros Sociales' },
+                          { val: 'Liquidación de impuestos', label: 'Liquidación Impuestos' },
+                          { val: 'Escrituras-contratos', label: 'Escritura / Contrato' },
+                          { val: 'Otros', label: 'Otros / Varios' },
+                        ].map(({ val, label }) => (
+                          <button
+                            key={val}
+                            onClick={() => { setDocTypeFilter(val); setIsMobileTypeOpen(false); }}
+                            className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${docTypeFilter === val ? 'font-bold text-secondary bg-secondary/5' : 'text-on-surface'}`}
+                          >
+                            <span>{label}</span>
+                            {docTypeFilter === val && <span className="material-symbols-outlined text-[14px] text-secondary">check</span>}
+                          </button>
+                        ))}
+                      </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* ── PILL 3: Estado ── */}
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={() => { setIsMobileStatusOpen(!isMobileStatusOpen); setIsMobileTypeOpen(false); setIsMobileDateOpen(false); }}
+                      title={statusFilter === 'all' ? 'Filtrar por estado' : `Estado activo: ${statusFilter}`}
+                      className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
+                        statusFilter !== 'all'
+                          ? 'bg-success/10 text-success border-success/35 shadow-sm'
+                          : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">radio_button_checked</span>
+                    </button>
+
+                    {isMobileStatusOpen && (
+                      <>
+                      <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-45" />
+                      <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                        {[
+                          { val: 'all', label: 'Todos' },
+                          { val: 'completed', label: 'Completados' },
+                          { val: 'pending', label: 'Pendientes' },
+                          { val: 'processing', label: 'Procesando' },
+                          { val: 'error', label: 'Errores' },
+                        ].map(({ val, label }) => (
+                          <button
+                            key={val}
+                            onClick={() => { setStatusFilter(val as typeof statusFilter); setIsMobileStatusOpen(false); }}
+                            className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${statusFilter === val ? 'font-bold text-success bg-success/5' : 'text-on-surface'}`}
+                          >
+                            <span>{label}</span>
+                            {statusFilter === val && <span className="material-symbols-outlined text-[14px] text-success">check</span>}
+                          </button>
+                        ))}
+                      </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Botón Limpiar Todo Móvil */}
+                  {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all' || selectedDocIds.length > 0) && (
+                    <button
+                      onClick={() => {
+                        setStatusFilter('all');
+                        setDocTypeFilter('all');
+                        setDateFilter('all');
+                        setSelectedDocIds([]);
+                      }}
+                      title="Limpiar filtros y selección"
+                      className="flex items-center justify-center h-8 w-8 rounded-full border border-error/25 bg-error/5 text-error hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in shrink-0"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">filter_alt_off</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Tabla de Historial de Documentos */}
               <section className="flex flex-col bg-surface rounded-sm border border-outline-variant/10 overflow-hidden shadow-precision" style={{ minHeight: '400px' }}>
                 <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
@@ -3631,235 +3857,6 @@ export default function Home() {
                       })}
                     </div>
 
-                    {/* ═══════════════════════════════════════════════════
-                        FILTROS PILL MÓVIL (solo block md:hidden)
-                        Fila deslizante horizontal con 3 pastillas
-                    ═══════════════════════════════════════════════════ */}
-                    {/* Botón Exportar ContaPlus + Eliminar en móvil */}
-                    <div className="block md:hidden flex items-center justify-between gap-2 px-4 py-2.5 bg-surface border border-outline-variant/10 rounded-lg shadow-sm mx-4 mt-3">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="checkbox"
-                          checked={selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0}
-                          onChange={handleSelectAll}
-                          className="rounded-sm border-outline-variant/20 text-secondary focus:ring-secondary/30 h-3.5 w-3.5"
-                        />
-                        <span className="text-[9px] text-on-surface-variant font-semibold">
-                          {selectedDocIds.length > 0 ? `${selectedDocIds.length} seleccionado${selectedDocIds.length > 1 ? 's' : ''}` : 'Seleccionar todo'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {selectedDocIds.length > 0 && (
-                          <button
-                            onClick={handleDeleteSelectedDocs}
-                            className="flex items-center gap-1 px-2.5 py-1 bg-error/10 text-error border border-error/20 rounded-full text-[10px] font-bold transition-all focus:outline-none"
-                          >
-                            <span className="material-symbols-outlined text-[11px]">delete</span>
-                            Eliminar
-                          </button>
-                        )}
-                        <div className="relative">
-                          <button
-                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                            disabled={selectedDocIds.length === 0}
-                            className="flex items-center gap-1 px-2.5 py-1 bg-secondary text-white rounded-full text-[10px] font-bold transition-all disabled:opacity-40 disabled:pointer-events-none focus:outline-none"
-                          >
-                            <span className="material-symbols-outlined text-[11px]">download_for_offline</span>
-                            ContaPlus ({selectedDocIds.length})
-                            <span className="material-symbols-outlined text-[10px]">expand_more</span>
-                          </button>
-                          {isExportDropdownOpen && selectedDocIds.length > 0 && (
-                            <>
-                              <div onClick={() => setIsExportDropdownOpen(false)} className="fixed inset-0 z-40" />
-                              <div className="absolute right-0 mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
-                                <button onClick={() => { handleExportContaplus('2008', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
-                                  <span>ContaPlus 2008 (TXT)</span>
-                                  <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase">ANSI</span>
-                                </button>
-                                <button onClick={() => { handleExportContaplus('2008', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
-                                  <span>ContaPlus 2008 (CSV)</span>
-                                  <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
-                                </button>
-                                <button onClick={() => { handleExportContaplus('2011', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
-                                  <span>ContaPlus 2011 (TXT)</span>
-                                  <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase">ANSI</span>
-                                </button>
-                                <button onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
-                                  <span>ContaPlus 2011 (CSV)</span>
-                                  <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Filtros Pill Móvil */}
-                    <div className="block md:hidden bg-surface px-4 py-2 border border-outline-variant/10 rounded-lg shadow-sm mx-4 mt-2 mb-2">
-                      <div className="flex items-center justify-between px-1">
-
-                        {/* ── PILL 1: Fecha ── */}
-                        <div className="relative shrink-0">
-                          <button
-                            onClick={() => { setIsMobileDateOpen(!isMobileDateOpen); setIsMobileStatusOpen(false); setIsMobileTypeOpen(false); setIsExportDropdownOpen(false); }}
-                            title={dateFilter === 'all' ? 'Filtrar por fecha' : `Fecha activa: ${dateFilter}`}
-                            className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
-                              dateFilter !== 'all'
-                                ? 'bg-primary/10 text-primary border-primary/35 shadow-sm'
-                                : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
-                            }`}
-                          >
-                            <span className="material-symbols-outlined text-[15px]">calendar_month</span>
-                          </button>
-
-                          {isMobileDateOpen && (
-                            <>
-                            <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-45" />
-                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-80 overflow-y-auto custom-scrollbar animate-fade-in">
-                              {[
-                                { val: 'all', label: 'Todos los documentos' },
-                                { val: '30days', label: 'Últimos 30 días' },
-                                { val: '60days', label: 'Últimos 60 días' },
-                                { val: '90days', label: 'Últimos 90 días' },
-                                { val: 'custom', label: 'Rango personalizado…' },
-                              ].map(({ val, label }) => (
-                                <button
-                                  key={val}
-                                  onClick={() => {
-                                    setDateFilter(val as typeof dateFilter);
-                                    if (val !== 'custom') {
-                                      setIsMobileDateOpen(false);
-                                    }
-                                  }}
-                                  className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${dateFilter === val ? 'font-bold text-primary bg-primary/5' : 'text-on-surface'}`}
-                                >
-                                  <span>{label}</span>
-                                  {dateFilter === val && <span className="material-symbols-outlined text-[14px] text-primary">check</span>}
-                                </button>
-                              ))}
-                              {dateFilter === 'custom' && (
-                                <div className="px-3 pb-2 space-y-2 border-t border-outline-variant/5 mt-1">
-                                  <div className="space-y-1 pt-2">
-                                    <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Desde:</label>
-                                    <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="block text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Hasta:</label>
-                                    <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="w-full bg-surface border border-outline-variant/10 rounded-sm py-1 px-2 text-[11px] font-semibold text-primary focus:outline-none" />
-                                  </div>
-                                  <div className="flex justify-end gap-2 pt-1">
-                                    <button onClick={() => { setCustomStartDate(''); setCustomEndDate(''); setDateFilter('all'); setIsMobileDateOpen(false); }} className="text-[10px] text-on-surface-variant hover:text-primary transition-colors focus:outline-none">Limpiar</button>
-                                    <button onClick={() => setIsMobileDateOpen(false)} className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-sm hover:opacity-95 active:scale-95 transition-all focus:outline-none">Aplicar</button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* ── PILL 2: Tipo de Documento ── */}
-                        <div className="relative shrink-0">
-                          <button
-                            onClick={() => { setIsMobileTypeOpen(!isMobileTypeOpen); setIsMobileStatusOpen(false); setIsMobileDateOpen(false); }}
-                            title={docTypeFilter === 'all' ? 'Filtrar por tipo' : `Tipo activo: ${getDocTypeLabel(docTypeFilter)}`}
-                            className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
-                              docTypeFilter !== 'all'
-                                ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm'
-                                : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
-                            }`}
-                          >
-                            <span className="material-symbols-outlined text-[15px]">folder_open</span>
-                          </button>
-
-                          {isMobileTypeOpen && (
-                            <>
-                            <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-45" />
-                            <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
-                              {[
-                                { val: 'all', label: 'Todos los tipos' },
-                                { val: 'Factura proveedor', label: 'Factura Proveedor' },
-                                { val: 'Facturas cliente', label: 'Factura Cliente' },
-                                { val: 'Tickets simplificados', label: 'Ticket / Simplificado' },
-                                { val: 'Extractos bancarios', label: 'Extracto Bancario' },
-                                { val: 'Recibos', label: 'Recibo / Justificante' },
-                                { val: 'Nominas', label: 'Nómina' },
-                                { val: 'Seguros sociales', label: 'Seguros Sociales' },
-                                { val: 'Liquidación de impuestos', label: 'Liquidación Impuestos' },
-                                { val: 'Escrituras-contratos', label: 'Escritura / Contrato' },
-                                { val: 'Otros', label: 'Otros / Varios' },
-                              ].map(({ val, label }) => (
-                                <button
-                                  key={val}
-                                  onClick={() => { setDocTypeFilter(val); setIsMobileTypeOpen(false); }}
-                                  className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${docTypeFilter === val ? 'font-bold text-secondary bg-secondary/5' : 'text-on-surface'}`}
-                                >
-                                  <span>{label}</span>
-                                  {docTypeFilter === val && <span className="material-symbols-outlined text-[14px] text-secondary">check</span>}
-                                </button>
-                              ))}
-                            </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* ── PILL 3: Estado ── */}
-                        <div className="relative shrink-0">
-                          <button
-                            onClick={() => { setIsMobileStatusOpen(!isMobileStatusOpen); setIsMobileTypeOpen(false); setIsMobileDateOpen(false); }}
-                            title={statusFilter === 'all' ? 'Filtrar por estado' : `Estado activo: ${statusFilter}`}
-                            className={`flex items-center justify-center h-8 w-8 rounded-full border transition-all duration-200 focus:outline-none cursor-pointer ${
-                              statusFilter !== 'all'
-                                ? 'bg-success/10 text-success border-success/35 shadow-sm'
-                                : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
-                            }`}
-                          >
-                            <span className="material-symbols-outlined text-[15px]">radio_button_checked</span>
-                          </button>
-
-                          {isMobileStatusOpen && (
-                            <>
-                            <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-45" />
-                            <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
-                              {[
-                                { val: 'all', label: 'Todos' },
-                                { val: 'completed', label: 'Completados' },
-                                { val: 'pending', label: 'Pendientes' },
-                                { val: 'processing', label: 'Procesando' },
-                                { val: 'error', label: 'Errores' },
-                              ].map(({ val, label }) => (
-                                <button
-                                  key={val}
-                                  onClick={() => { setStatusFilter(val as typeof statusFilter); setIsMobileStatusOpen(false); }}
-                                  className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors hover:bg-surface-container-low ${statusFilter === val ? 'font-bold text-success bg-success/5' : 'text-on-surface'}`}
-                                >
-                                  <span>{label}</span>
-                                  {statusFilter === val && <span className="material-symbols-outlined text-[14px] text-success">check</span>}
-                                </button>
-                              ))}
-                            </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Botón Limpiar Todo Móvil */}
-                        {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all' || selectedDocIds.length > 0) && (
-                          <button
-                            onClick={() => {
-                              setStatusFilter('all');
-                              setDocTypeFilter('all');
-                              setDateFilter('all');
-                              setSelectedDocIds([]);
-                            }}
-                            title="Limpiar filtros y selección"
-                            className="flex items-center justify-center h-8 w-8 rounded-full border border-error/25 bg-error/5 text-error hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in shrink-0"
-                          >
-                            <span className="material-symbols-outlined text-[15px]">filter_alt_off</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
 
                     {/* Listado de Tarjetas Premium en Vista Móvil */}
                     <div className="block md:hidden space-y-3 p-4">
@@ -4131,15 +4128,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Botón Flotante de Chat para Móviles */}
-              <div className="block md:hidden fixed bottom-20 right-6 z-40">
-                <button 
-                  onClick={() => setIsMobileChatOpen(true)}
-                  className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg active:scale-95 transition-all focus:outline-none"
-                >
-                  <span className="material-symbols-outlined text-xl text-white">chat</span>
-                </button>
-              </div>
+
 
               {/* Chat Flotante / Drawer para Móviles */}
               {isMobileChatOpen && (
@@ -5588,42 +5577,113 @@ export default function Home() {
       )}
 
       {/* Menú de Navegación Inferior Móvil (Bottom Navigation Bar) */}
-      <div className="fixed bottom-0 left-0 w-full h-16 z-40 bg-surface border-t border-outline-variant/10 md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.03)] backdrop-blur-md bg-surface/90 flex justify-around items-center px-4">
+      <div className="fixed bottom-0 left-0 w-full h-16 landscape:h-12 z-40 bg-surface border-t border-outline-variant/10 md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.03)] backdrop-blur-md bg-surface/90 flex justify-around items-center px-2">
+        
+        {/* Botón 1: Panel */}
         <button 
           onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center justify-center gap-1 w-20 h-full transition-all focus:outline-none ${
+          className={`flex flex-col items-center justify-center gap-1 landscape:gap-0.5 w-16 h-full transition-all focus:outline-none ${
             activeTab === 'dashboard' ? 'text-primary font-bold animate-in fade-in duration-200' : 'text-on-surface-variant/70 hover:text-primary'
           }`}
         >
-          <span className={`material-symbols-outlined text-[20px] ${activeTab === 'dashboard' ? 'material-symbols-fill text-primary' : ''}`}>
+          <span className={`material-symbols-outlined text-[20px] landscape:text-[18px] ${activeTab === 'dashboard' ? 'material-symbols-fill text-primary' : ''}`}>
             dashboard
           </span>
-          <span className="text-[9px] uppercase tracking-wider font-semibold">Panel</span>
+          <span className="text-[8px] uppercase tracking-wider font-semibold">Panel</span>
         </button>
         
+        {/* Botón 2: Documentos */}
         <button 
           onClick={() => setActiveTab('documents')}
-          className={`flex flex-col items-center justify-center gap-1 w-20 h-full transition-all focus:outline-none ${
+          className={`flex flex-col items-center justify-center gap-1 landscape:gap-0.5 w-16 h-full transition-all focus:outline-none ${
             activeTab === 'documents' ? 'text-primary font-bold animate-in fade-in duration-200' : 'text-on-surface-variant/70 hover:text-primary'
           }`}
         >
-          <span className={`material-symbols-outlined text-[20px] ${activeTab === 'documents' ? 'material-symbols-fill text-primary' : ''}`}>
+          <span className={`material-symbols-outlined text-[20px] landscape:text-[18px] ${activeTab === 'documents' ? 'material-symbols-fill text-primary' : ''}`}>
             description
           </span>
-          <span className="text-[9px] uppercase tracking-wider font-semibold">Documentos</span>
+          <span className="text-[8px] uppercase tracking-wider font-semibold">Docs</span>
         </button>
         
+        {/* Botón 3: Chat Gemini (IA) */}
+        <button 
+          onClick={() => setIsMobileChatOpen(true)}
+          className={`flex flex-col items-center justify-center gap-1 landscape:gap-0.5 w-16 h-full transition-all focus:outline-none ${
+            isMobileChatOpen ? 'text-secondary font-bold' : 'text-on-surface-variant/70 hover:text-secondary'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[20px] landscape:text-[18px] material-symbols-fill text-secondary animate-pulse">
+            auto_awesome
+          </span>
+          <span className="text-[8px] uppercase tracking-wider font-semibold">Gemini</span>
+        </button>
+        
+        {/* Botón 4: Ajustes */}
         <button 
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center justify-center gap-1 w-20 h-full transition-all focus:outline-none ${
+          className={`flex flex-col items-center justify-center gap-1 landscape:gap-0.5 w-16 h-full transition-all focus:outline-none ${
             activeTab === 'settings' ? 'text-primary font-bold animate-in fade-in duration-200' : 'text-on-surface-variant/70 hover:text-primary'
           }`}
         >
-          <span className={`material-symbols-outlined text-[20px] ${activeTab === 'settings' ? 'material-symbols-fill text-primary' : ''}`}>
+          <span className={`material-symbols-outlined text-[20px] landscape:text-[18px] ${activeTab === 'settings' ? 'material-symbols-fill text-primary' : ''}`}>
             settings
           </span>
-          <span className="text-[9px] uppercase tracking-wider font-semibold">Ajustes</span>
+          <span className="text-[8px] uppercase tracking-wider font-semibold">Ajustes</span>
         </button>
+        
+        {/* Botón 5: Perfil / Usuario */}
+        <div className="relative flex items-center justify-center w-16 h-full">
+          <button 
+            onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+            className="flex flex-col items-center justify-center gap-1 landscape:gap-0.5 w-full h-full transition-all focus:outline-none text-on-surface-variant/70 hover:text-primary"
+          >
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center overflow-hidden border ${isUserDropdownOpen ? 'bg-primary border-primary text-white' : 'bg-primary-container border-outline-variant/10 text-white'}`}>
+              <span className="material-symbols-outlined text-[13px] landscape:text-[11px] leading-none flex items-center justify-center">person</span>
+            </div>
+            <span className="text-[8px] uppercase tracking-wider font-semibold">Perfil</span>
+          </button>
+          
+          {isUserDropdownOpen && (
+            <>
+              <div onClick={() => setIsUserDropdownOpen(false)} className="fixed inset-0 z-45" />
+              {/* Dropdown posicionado arriba de la barra en móviles */}
+              <div className="absolute bottom-full right-0 mb-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-2.5 text-left text-on-surface animate-fade-in">
+                <div className="px-4 py-1.5 select-none">
+                  <p className="text-xs font-bold text-primary">{activeUser.name}</p>
+                  <p className="text-[9px] text-on-surface-variant font-semibold">{activeUser.role}</p>
+                </div>
+                <div className="h-px bg-outline-variant/10 my-1.5"></div>
+                <button 
+                  onClick={() => { setIsLocked(true); setIsUserDropdownOpen(false); }}
+                  className="w-full px-4 py-2 text-xs text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors text-left flex items-center gap-2 focus:outline-none"
+                >
+                  <span className="material-symbols-outlined text-sm">lock</span>
+                  <span>Bloquear Pantalla</span>
+                </button>
+                <button 
+                  onClick={() => { setIsChangePasswordModalOpen(true); setIsUserDropdownOpen(false); }}
+                  className="w-full px-4 py-2 text-xs text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors text-left flex items-center gap-2 focus:outline-none"
+                >
+                  <span className="material-symbols-outlined text-sm">key</span>
+                  <span>Modificar Contraseña</span>
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (supabase) {
+                      await supabase.auth.signOut();
+                    }
+                    setIsLoggedIn(false);
+                    setIsUserDropdownOpen(false);
+                  }}
+                  className="w-full px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors text-left flex items-center gap-2 focus:outline-none"
+                >
+                  <span className="material-symbols-outlined text-sm text-red-600">logout</span>
+                  <span>Cerrar Sesión</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Banner de error de conexión con Supabase */}
