@@ -5529,14 +5529,44 @@ export default function Home() {
                         </p>
                       </div>
                     </div>
-
                     <div className="flex gap-4 animate-fade-in">
                       <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">7</div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <h5 className="font-bold text-on-surface text-xs">Categorización y Etiquetas de Colores</h5>
-                        <p className="text-[11px]">
-                          Los documentos se clasifican automáticamente en una de las <strong className="font-semibold text-primary">10 categorías contables</strong> (Factura Proveedor, Factura Cliente, Ticket, Extracto Bancario, Recibo, Nómina, Seguros Sociales, Liquidación de Impuestos, Escritura/Contrato, Otros). Cada categoría posee una etiqueta de color específica para agilizar su identificación visual, y puedes usar el nuevo <strong className="font-semibold text-secondary">Filtro por Tipo</strong> para segmentar tu historial al instante tanto en móvil como en escritorio.
+                        <p className="text-[11px] mb-3">
+                          Los documentos se clasifican automáticamente en una de las <strong className="font-semibold text-primary">10 categorías contables</strong>. Cada categoría posee una etiqueta de color específica para agilizar su identificación visual:
                         </p>
+                        
+                        {/* Tabla de leyenda de colores premium */}
+                        <div className="border border-outline-variant/10 rounded-sm overflow-hidden bg-surface-container-low shadow-precision max-w-md my-2">
+                          <div className="grid grid-cols-2 bg-surface-container-high/50 border-b border-outline-variant/10 px-3 py-1.5 text-[9px] font-bold text-primary uppercase tracking-wider">
+                            <span>Tipo de Documento</span>
+                            <span className="text-right">Etiqueta Visual</span>
+                          </div>
+                          <div className="divide-y divide-outline-variant/5">
+                            {[
+                              { label: 'Factura Proveedor', badge: 'bg-error/10 text-error border-error/20', colorName: 'Proveedor' },
+                              { label: 'Factura Cliente', badge: 'bg-success/10 text-success border-success/20', colorName: 'Cliente' },
+                              { label: 'Extracto Bancario', badge: 'bg-secondary/10 text-secondary border-secondary/20', colorName: 'Bancos' },
+                              { label: 'Nómina', badge: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20', colorName: 'Nómina' },
+                              { label: 'Liquidación Impuestos', badge: 'bg-amber-500/10 text-amber-500 border-amber-500/20', colorName: 'Impuestos' },
+                              { label: 'Tickets / Simplificados', badge: 'bg-primary/10 text-primary border-primary/20', colorName: 'Tickets' },
+                              { label: 'Recibos / Justificantes', badge: 'bg-primary/10 text-primary border-primary/20', colorName: 'Recibos' },
+                              { label: 'Seguros Sociales', badge: 'bg-primary/10 text-primary border-primary/20', colorName: 'Seguros' },
+                              { label: 'Escrituras / Contratos', badge: 'bg-primary/10 text-primary border-primary/20', colorName: 'Escrituras' },
+                              { label: 'Otros / Varios', badge: 'bg-primary/10 text-primary border-primary/20', colorName: 'Otros' },
+                            ].map((item, idx) => (
+                              <div key={idx} className="grid grid-cols-2 px-3 py-1.5 text-[10px] items-center hover:bg-surface-container-high/20 transition-colors">
+                                <span className="font-semibold text-on-surface">{item.label}</span>
+                                <div className="text-right">
+                                  <span className={`px-2 py-0.5 rounded-sm border text-[8px] font-bold uppercase tracking-wider ${item.badge}`}>
+                                    {item.colorName}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
