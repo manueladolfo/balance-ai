@@ -3272,10 +3272,10 @@ export default function Home() {
 
               {/* Fila de Filtros y Acciones - Pills unificadas Desktop/Tablet */}
               <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
-                <div className="flex items-center justify-center gap-2 flex-wrap">
+                <div className="flex items-center justify-start gap-1.5 flex-nowrap overflow-x-auto custom-scrollbar pr-2">
                   {/* ── PILL Seleccionar Todo (Desktop/Tablet) ── */}
                   <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all duration-200 cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.25 rounded-full border text-[10.5px] font-semibold transition-all duration-200 cursor-pointer ${
                       selectedDocIds.length > 0
                         ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm font-bold'
                         : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
@@ -3302,7 +3302,7 @@ export default function Home() {
                   <div className="relative">
                     <button
                       onClick={() => { setIsDateDropdownOpen(!isDateDropdownOpen); setIsFilterDropdownOpen(false); setIsDocTypeFilterDropdownOpen(false); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1.25 rounded-full border text-[10.5px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none cursor-pointer ${
                         dateFilter !== 'all'
                           ? 'bg-primary/10 text-primary border-primary/35 shadow-sm font-bold'
                           : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
@@ -3315,9 +3315,8 @@ export default function Home() {
                       {dateFilter === '90days' && 'Últ. 90 días'}
                       {dateFilter === 'custom' && 'Personalizado'}
                       {dateFilter !== 'all' && (
-                        <span onClick={(e) => { e.stopPropagation(); setDateFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80">close</span>
+                        <span onClick={(e) => { e.stopPropagation(); setDateFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80 ml-0.5">close</span>
                       )}
-                      {dateFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
                     </button>
                     {isDateDropdownOpen && (
                       <>
@@ -3364,7 +3363,7 @@ export default function Home() {
                   <div className="relative">
                     <button
                       onClick={() => { setIsDocTypeFilterDropdownOpen(!isDocTypeFilterDropdownOpen); setIsFilterDropdownOpen(false); setIsDateDropdownOpen(false); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1.25 rounded-full border text-[10.5px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none cursor-pointer ${
                         docTypeFilter !== 'all'
                           ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm font-bold'
                           : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
@@ -3373,9 +3372,8 @@ export default function Home() {
                       <span className="material-symbols-outlined text-[13px]">folder_open</span>
                       {docTypeFilter === 'all' ? 'Tipo' : getDocTypeLabel(docTypeFilter)}
                       {docTypeFilter !== 'all' && (
-                        <span onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80">close</span>
+                        <span onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80 ml-0.5">close</span>
                       )}
-                      {docTypeFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
                     </button>
                     {isDocTypeFilterDropdownOpen && (
                       <>
@@ -3412,7 +3410,7 @@ export default function Home() {
                   <div className="relative">
                     <button
                       onClick={() => { setIsFilterDropdownOpen(!isFilterDropdownOpen); setIsDateDropdownOpen(false); setIsDocTypeFilterDropdownOpen(false); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1.25 rounded-full border text-[10.5px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none cursor-pointer ${
                         statusFilter !== 'all'
                           ? 'bg-success/10 text-success border-success/35 shadow-sm font-bold'
                           : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
@@ -3425,9 +3423,8 @@ export default function Home() {
                       {statusFilter === 'completed' && 'Completados'}
                       {statusFilter === 'error' && 'Errores'}
                       {statusFilter !== 'all' && (
-                        <span onClick={(e) => { e.stopPropagation(); setStatusFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80">close</span>
+                        <span onClick={(e) => { e.stopPropagation(); setStatusFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80 ml-0.5">close</span>
                       )}
-                      {statusFilter === 'all' && <span className="material-symbols-outlined text-[11px]">expand_more</span>}
                     </button>
                     {isFilterDropdownOpen && (
                       <>
@@ -3463,7 +3460,7 @@ export default function Home() {
                         setDateFilter('all');
                         setSelectedDocIds([]);
                       }}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-error/25 bg-error/5 text-error text-[11px] font-bold whitespace-nowrap hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in"
+                      className="flex items-center gap-1.5 px-3 py-1.25 rounded-full border border-error/25 bg-error/5 text-error text-[10.5px] font-bold whitespace-nowrap hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in"
                     >
                       <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
                       Limpiar Todo
