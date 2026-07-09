@@ -3634,7 +3634,7 @@ export default function Home() {
 
                     {/* Filtros Pill Móvil */}
                     <div className="block md:hidden bg-background/90 backdrop-blur-sm px-4 py-2.5 border-b border-outline-variant/10">
-                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                      <div className="flex items-center gap-2 flex-wrap pb-0.5">
 
                         {/* ── PILL 1: Fecha ── */}
                         <div className="relative shrink-0">
