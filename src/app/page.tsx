@@ -3677,12 +3677,7 @@ export default function Home() {
                                   <span>ContaPlus 2008 (CSV)</span>
                                   <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
                                 </button>
-                                <div className="h-px bg-outline-variant/5 my-1" />
-                                <button onClick={() => { handleExportContaplus('2011', 'txt'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
-                                  <span>ContaPlus 2011 (TXT)</span>
-                                  <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm font-bold uppercase">ANSI</span>
-                                </button>
-                                <button onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
+<button onClick={() => { handleExportContaplus('2011', 'csv'); setIsExportDropdownOpen(false); }} className="w-full px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between">
                                   <span>ContaPlus 2011 (CSV)</span>
                                   <span className="text-[8px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-sm font-bold uppercase">CSV</span>
                                 </button>
@@ -3694,16 +3689,41 @@ export default function Home() {
                     </div>
 
                     {/* Filtros Pill Móvil */}
-                    <div className="block md:hidden bg-background/90 backdrop-blur-sm px-4 py-2.5 border-b border-outline-variant/10">
+                    <div className="block md:hidden bg-surface px-4 py-2.5 border-b border-outline-variant/10">
                       <div className="flex items-center gap-2 flex-wrap pb-0.5">
+
+                        {/* ── PILL Seleccionar Todo (Móvil) ── */}
+                        <div
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all duration-200 cursor-pointer ${
+                            selectedDocIds.length > 0
+                              ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm font-bold'
+                              : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
+                          }`}
+                          onClick={() => {
+                            const allSelected = selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0;
+                            const fakeEvent = { target: { checked: !allSelected } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                            handleSelectAll(fakeEvent);
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0}
+                            onChange={handleSelectAll}
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3 w-3 cursor-pointer animate-none"
+                          />
+                          <span className="select-none text-[10px]">
+                            {selectedDocIds.length > 0 ? `${selectedDocIds.length} sel.` : 'Todos'}
+                          </span>
+                        </div>
 
                         {/* ── PILL 1: Fecha ── */}
                         <div className="relative shrink-0">
                           <button
                             onClick={() => { setIsMobileDateOpen(!isMobileDateOpen); setIsMobileStatusOpen(false); setIsMobileTypeOpen(false); setIsExportDropdownOpen(false); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
                               dateFilter !== 'all'
-                                ? 'bg-primary text-white border-primary shadow-sm'
+                                ? 'bg-primary/10 text-primary border-primary/35 shadow-sm font-bold'
                                 : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                           >
@@ -3724,8 +3744,8 @@ export default function Home() {
 
                           {isMobileDateOpen && (
                             <>
-                            <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-40" />
-                            <div className="absolute left-0 top-full mt-2 w-48 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                            <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-45" />
+                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los documentos' },
                                 { val: '30days', label: 'Últimos 30 días' },
@@ -3751,9 +3771,9 @@ export default function Home() {
                         <div className="relative shrink-0">
                           <button
                             onClick={() => { setIsMobileTypeOpen(!isMobileTypeOpen); setIsMobileStatusOpen(false); setIsMobileDateOpen(false); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
                               docTypeFilter !== 'all'
-                                ? 'bg-secondary text-white border-secondary shadow-sm'
+                                ? 'bg-secondary/10 text-secondary border-secondary/35 shadow-sm font-bold'
                                 : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                           >
@@ -3770,8 +3790,8 @@ export default function Home() {
 
                           {isMobileTypeOpen && (
                             <>
-                            <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-40" />
-                            <div className="absolute left-0 top-full mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                            <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-45" />
+                            <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los tipos' },
                                 { val: 'Factura proveedor', label: 'Factura Proveedor' },
@@ -3803,9 +3823,9 @@ export default function Home() {
                         <div className="relative shrink-0">
                           <button
                             onClick={() => { setIsMobileStatusOpen(!isMobileStatusOpen); setIsMobileTypeOpen(false); setIsMobileDateOpen(false); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all focus:outline-none ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none ${
                               statusFilter !== 'all'
-                                ? 'bg-success text-white border-success shadow-sm'
+                                ? 'bg-success/10 text-success border-success/35 shadow-sm font-bold'
                                 : 'bg-surface border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                           >
@@ -3826,8 +3846,8 @@ export default function Home() {
 
                           {isMobileStatusOpen && (
                             <>
-                            <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-40" />
-                            <div className="absolute left-0 top-full mt-2 w-44 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
+                            <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-45" />
+                            <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos' },
                                 { val: 'completed', label: 'Completados' },
@@ -3849,14 +3869,19 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* Indicador de filtros activos */}
-                        {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all') && (
+                        {/* Botón Limpiar Todo Móvil */}
+                        {(statusFilter !== 'all' || docTypeFilter !== 'all' || dateFilter !== 'all' || selectedDocIds.length > 0) && (
                           <button
-                            onClick={() => { setStatusFilter('all'); setDocTypeFilter('all'); setDateFilter('all'); }}
-                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-error/30 bg-error/10 text-error text-[10px] font-bold whitespace-nowrap hover:bg-error/15 transition-colors"
+                            onClick={() => {
+                              setStatusFilter('all');
+                              setDocTypeFilter('all');
+                              setDateFilter('all');
+                              setSelectedDocIds([]);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-error/25 bg-error/5 text-error text-[10px] font-bold whitespace-nowrap hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in"
                           >
                             <span className="material-symbols-outlined text-[12px]">filter_alt_off</span>
-                            Limpiar
+                            <span>Limpiar Todo</span>
                           </button>
                         )}
                       </div>
