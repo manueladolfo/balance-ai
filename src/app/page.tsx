@@ -3272,7 +3272,7 @@ export default function Home() {
 
               {/* Fila de Filtros y Acciones - Pills unificadas Desktop/Tablet */}
               <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
-                <div className="flex items-center justify-start gap-1.5 flex-nowrap overflow-x-auto custom-scrollbar pr-2">
+                <div className="flex items-center justify-start gap-1.5 flex-nowrap overflow-visible pr-2">
                   {/* ── PILL Seleccionar Todo (Desktop/Tablet) ── */}
                   <div
                     className={`flex items-center gap-1.5 px-2.5 py-1.25 rounded-full border text-[10.5px] font-semibold transition-all duration-200 cursor-pointer ${
@@ -3294,7 +3294,7 @@ export default function Home() {
                       className="rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3.5 w-3.5 cursor-pointer animate-none"
                     />
                     <span className="select-none">
-                      {selectedDocIds.length > 0 ? `${selectedDocIds.length} sel.` : 'Todos'}
+                      {selectedDocIds.length > 0 ? `Seleccionar todo (${selectedDocIds.length})` : 'Seleccionar todo'}
                     </span>
                   </div>
 
@@ -3460,10 +3460,10 @@ export default function Home() {
                         setDateFilter('all');
                         setSelectedDocIds([]);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.25 rounded-full border border-error/25 bg-error/5 text-error text-[10.5px] font-bold whitespace-nowrap hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in"
+                      title="Limpiar filtros y selección"
+                      className="flex items-center justify-center h-7 w-7 rounded-full border border-error/25 bg-error/5 text-error hover:bg-error/10 active:scale-[0.97] transition-all cursor-pointer shadow-precision animate-fade-in shrink-0"
                     >
-                      <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
-                      Limpiar Todo
+                      <span className="material-symbols-outlined text-[14px]">filter_alt_off</span>
                     </button>
                   )}
                 </div>
