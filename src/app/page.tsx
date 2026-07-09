@@ -893,6 +893,24 @@ export default function Home() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Helper to map DB/raw doc type values to user-friendly Spanish labels
+  const getDocTypeLabel = (value: string) => {
+    const map: Record<string, string> = {
+      'all': 'Todos los tipos',
+      'Factura proveedor': 'Factura Proveedor',
+      'Facturas cliente': 'Factura Cliente',
+      'Tickets simplificados': 'Ticket / Simplificado',
+      'Extractos bancarios': 'Extracto Bancario',
+      'Recibos': 'Recibo / Justificante',
+      'Nominas': 'Nómina',
+      'Seguros sociales': 'Seguros Sociales',
+      'Liquidación de impuestos': 'Liquidación Impuestos',
+      'Escrituras-contratos': 'Escritura / Contrato',
+      'Otros': 'Otros / Varios'
+    };
+    return map[value] || value;
+  };
+
   // Helper to extract display type and clean description for documents
   const getDocumentDisplayInfo = (doc: any) => {
     if (doc.status === 'processing') {
@@ -2107,7 +2125,7 @@ export default function Home() {
   // Toggle selection for all rows
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedDocIds(documents.map(d => d.id));
+      setSelectedDocIds(filteredDocs.map(d => d.id));
     } else {
       setSelectedDocIds([]);
     }
@@ -2178,7 +2196,7 @@ export default function Home() {
     }
   };
 
-  // Filter documents by search query, status and date
+  // Filter documents by search query, status, date and type
   const filteredDocs = documents.filter(doc => {
     const query = searchQuery.toLowerCase();
     const nameMatch = doc.name.toLowerCase().includes(query);
@@ -2187,6 +2205,9 @@ export default function Home() {
     const matchesSearch = nameMatch || descMatch || typeMatch;
 
     const matchesStatus = statusFilter === 'all' || doc.status === statusFilter;
+
+    const docDisplayInfo = getDocumentDisplayInfo(doc);
+    const matchesDocType = docTypeFilter === 'all' || docDisplayInfo.type === docTypeFilter;
 
     let matchesDate = true;
     const docDate = new Date(doc.created_at);
@@ -2217,7 +2238,7 @@ export default function Home() {
       }
     }
 
-    return matchesSearch && matchesStatus && matchesDate;
+    return matchesSearch && matchesStatus && matchesDate && matchesDocType;
   });
 
   if (!isLoggedIn) {
@@ -3204,6 +3225,23 @@ export default function Home() {
               {/* Fila de Filtros y Acciones - Pills unificadas Desktop/Tablet */}
               <div className="hidden md:flex md:flex-row md:justify-between md:items-center bg-surface px-6 py-4 rounded-sm border border-outline-variant/10 shrink-0 select-none shadow-precision mb-1">
                 <div className="flex items-center justify-center gap-2 flex-wrap">
+                  {/* ── PILL Seleccionar Todo (Desktop/Tablet) ── */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-outline-variant/20 bg-surface text-on-surface-variant text-[11px] font-semibold hover:bg-surface-container-low transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0}
+                      onChange={handleSelectAll}
+                      className="rounded-sm border-outline-variant text-secondary focus:ring-secondary/50 h-3.5 w-3.5 cursor-pointer"
+                    />
+                    <span className="cursor-pointer select-none" onClick={() => {
+                      const allSelected = selectedDocIds.length === filteredDocs.length && filteredDocs.length > 0;
+                      const fakeEvent = { target: { checked: !allSelected } } as React.ChangeEvent<HTMLInputElement>;
+                      handleSelectAll(fakeEvent);
+                    }}>
+                      {selectedDocIds.length > 0 ? `${selectedDocIds.length} sel.` : 'Todos'}
+                    </span>
+                  </div>
+
                   {/* ── PILL Fecha (Desktop) ── */}
                   <div className="relative">
                     <button
@@ -3277,7 +3315,7 @@ export default function Home() {
                       }`}
                     >
                       <span className="material-symbols-outlined text-[13px]">folder_open</span>
-                      {docTypeFilter === 'all' ? 'Tipo' : docTypeFilter}
+                      {docTypeFilter === 'all' ? 'Tipo' : getDocTypeLabel(docTypeFilter)}
                       {docTypeFilter !== 'all' && (
                         <span onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); }} className="material-symbols-outlined text-[11px] opacity-80">close</span>
                       )}
@@ -3659,7 +3697,7 @@ export default function Home() {
                             }`}
                           >
                             <span className="material-symbols-outlined text-[13px]">folder_open</span>
-                            {docTypeFilter === 'all' ? 'Tipo' : docTypeFilter}
+                            {docTypeFilter === 'all' ? 'Tipo' : getDocTypeLabel(docTypeFilter)}
                             {docTypeFilter !== 'all' && (
                               <span
                                 onClick={(e) => { e.stopPropagation(); setDocTypeFilter('all'); setIsMobileTypeOpen(false); }}
@@ -3675,16 +3713,16 @@ export default function Home() {
                             <div className="absolute left-0 top-full mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 animate-fade-in">
                               {[
                                 { val: 'all', label: 'Todos los tipos' },
-                                { val: 'Fact. Proveedor', label: 'Factura Proveedor' },
-                                { val: 'Fact. Cliente', label: 'Factura Cliente' },
-                                { val: 'Ticket', label: 'Ticket / Recibo' },
-                                { val: 'Extracto Bancario', label: 'Extracto Bancario' },
-                                { val: 'Recibo', label: 'Recibo' },
-                                { val: 'Nómina', label: 'Nómina' },
-                                { val: 'Seguros Sociales', label: 'Seguros Sociales' },
-                                { val: 'Liq. Impuestos', label: 'Liquidación Impuestos' },
-                                { val: 'Escritura', label: 'Escritura / Contrato' },
-                                { val: 'Otros', label: 'Otros' },
+                                { val: 'Factura proveedor', label: 'Factura Proveedor' },
+                                { val: 'Facturas cliente', label: 'Factura Cliente' },
+                                { val: 'Tickets simplificados', label: 'Ticket / Simplificado' },
+                                { val: 'Extractos bancarios', label: 'Extracto Bancario' },
+                                { val: 'Recibos', label: 'Recibo / Justificante' },
+                                { val: 'Nominas', label: 'Nómina' },
+                                { val: 'Seguros sociales', label: 'Seguros Sociales' },
+                                { val: 'Liquidación de impuestos', label: 'Liquidación Impuestos' },
+                                { val: 'Escrituras-contratos', label: 'Escritura / Contrato' },
+                                { val: 'Otros', label: 'Otros / Varios' },
                               ].map(({ val, label }) => (
                                 <button
                                   key={val}
