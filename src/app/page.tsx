@@ -2701,6 +2701,33 @@ export default function Home() {
   return (
     <div className="flex h-screen w-full bg-background text-on-surface overflow-hidden">
       
+      {/* Pantalla de Carga Glassmorphism Premium */}
+      {isLoggedIn && (isLoading || isLoadingCompanies) && (
+        <div className="fixed inset-0 bg-background/30 backdrop-blur-xl flex flex-col items-center justify-center z-[9999] animate-fade-in select-none">
+          {/* Círculos de luz difusa de fondo */}
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl -z-10"></div>
+
+          {/* Contenedor de Vidrio Esmerilado */}
+          <div className="bg-surface/40 border border-outline-variant/10 p-8 rounded-sm shadow-2xl flex flex-col items-center gap-5 text-center max-w-sm w-full mx-4 backdrop-filter">
+            <div className="relative w-12 h-12 flex items-center justify-center">
+              <span className="animate-spin material-symbols-outlined text-primary text-3xl select-none leading-none">
+                progress_activity
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-primary uppercase tracking-widest">
+                Cargando tus libros contables
+              </h3>
+              <p className="text-[10px] text-on-surface-variant font-medium tracking-wide">
+                Sincronizando con Precision Ledger AI...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-4 right-4 z-[100] px-lg py-sm rounded-lg shadow-lg text-white text-sm flex items-center gap-sm animate-in fade-in slide-in-from-top-4 duration-300 ${
