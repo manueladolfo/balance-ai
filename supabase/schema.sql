@@ -119,3 +119,14 @@ CREATE POLICY "Allow public read notifications" ON public.notifications FOR SELE
 CREATE POLICY "Allow public insert notifications" ON public.notifications FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update notifications" ON public.notifications FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete notifications" ON public.notifications FOR DELETE USING (true);
+
+-- 6. Profiles table (gestionada por Supabase Auth triggers o manualmente al registrarse)
+-- La tabla profiles se crea automáticamente al registrarse mediante el código de la app.
+-- Migration: añadir campo avatar_url (ejecutar manualmente si la tabla ya existe)
+--   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+
+-- 7. Storage bucket para avatares de usuario
+-- Ejecutar en la consola de Supabase:
+--   INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+--   VALUES ('avatars', 'avatars', true, 5242880, ARRAY['image/webp'])
+--   ON CONFLICT (id) DO NOTHING;

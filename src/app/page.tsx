@@ -71,6 +71,13 @@ export default function Home() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isAccountActionLoading, setIsAccountActionLoading] = useState(false);
 
+  // Avatar states
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'settings'>('dashboard');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,6 +217,8 @@ export default function Home() {
       if (savedToken) setGoogleDriveToken(savedToken);
       if (savedEmail) setGoogleUserEmail(savedEmail);
       if (savedName) setGoogleUserName(savedName);
+
+      // Avatar se carga desde Supabase al iniciar sesión (ver checkUser y onAuthStateChange)
 
       // Force 'gemini' as provider to avoid billing locks
       setActiveAiProvider('gemini');
@@ -558,6 +567,8 @@ export default function Home() {
               email: profile.email,
               role: profile.username ? `@${profile.username}` : 'Usuario'
             });
+            // Cargar avatar desde Supabase
+            if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
           } else {
             setActiveUser({
               name: session.user.user_metadata.name || session.user.email?.split('@')[0] || 'Usuario',
@@ -589,6 +600,8 @@ export default function Home() {
               email: profile.email,
               role: profile.username ? `@${profile.username}` : 'Usuario'
             });
+            // Cargar avatar desde Supabase
+            if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
           } else {
             setActiveUser({
               name: session.user.user_metadata.name || session.user.email?.split('@')[0] || 'Usuario',
@@ -602,6 +615,7 @@ export default function Home() {
         }
       } else if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false);
+        setAvatarUrl(null);
       }
     });
 
@@ -644,21 +658,42 @@ export default function Home() {
     setIsAuthLoading(true);
     try {
       let email = identifier;
+      let userProfile = null;
 
       // Si no contiene un '@', asumimos que es un nombre de usuario
       if (!identifier.includes('@')) {
         const { data: profile, error: profileError } = await client
           .from('profiles')
           .select('email')
-          .eq('username', identifier.toLowerCase())
+          .eq('username', identifier.toLowerCase().trim())
           .maybeSingle();
 
-        if (profileError || !profile) {
-          showToast('Nombre de usuario no encontrado.', 'error');
-          setIsAuthLoading(false);
-          return;
+        if (profileError) {
+          console.error('Error buscando perfil por nombre de usuario:', profileError);
         }
-        email = profile.email;
+        userProfile = profile;
+        if (profile) {
+          email = profile.email;
+        }
+      } else {
+        // Si contiene '@', asumimos que es un correo electrónico y comprobamos si existe en profiles
+        const { data: profile, error: profileError } = await client
+          .from('profiles')
+          .select('email')
+          .eq('email', identifier.toLowerCase().trim())
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('Error buscando perfil por email:', profileError);
+        }
+        userProfile = profile;
+        email = identifier.toLowerCase().trim();
+      }
+
+      if (!userProfile) {
+        showToast('Usuario no registrado. La única manera de acceder es con un usuario registrado o registrando uno nuevo.', 'error');
+        setIsAuthLoading(false);
+        return;
       }
 
       const { error } = await client.auth.signInWithPassword({
@@ -2082,6 +2117,121 @@ export default function Home() {
     }
   };
 
+  // Convierte cualquier imagen a WebP usando el Canvas de browser
+  const convertToWebP = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Escalar a máximo 512x512 para el avatar
+        const MAX = 512;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round((h * MAX) / w); w = MAX; }
+          else { w = Math.round((w * MAX) / h); h = MAX; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas context no disponible.')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(objectUrl);
+            if (blob) resolve(blob);
+            else reject(new Error('Error al convertir la imagen a WebP.'));
+          },
+          'image/webp',
+          0.88
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Error al leer la imagen.')); };
+      img.src = objectUrl;
+    });
+  };
+
+  // Handle avatar file selection and preview (genera preview local)
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('La imagen no puede superar los 5 MB.', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatarPreview(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    // Guardar el File original para la conversión WebP al subir
+    (avatarFileInputRef.current as any).__pendingFile = file;
+  };
+
+  // Sube el avatar: convierte a WebP en el cliente y llama a /api/avatar
+  const handleSaveAvatar = async () => {
+    const pendingFile: File | undefined = (avatarFileInputRef.current as any)?.__pendingFile;
+    if (!pendingFile || !avatarPreview) return;
+    setIsUploadingAvatar(true);
+    try {
+      // 1. Convertir a WebP en el cliente
+      const webpBlob = await convertToWebP(pendingFile);
+      const webpFile = new File([webpBlob], 'avatar.webp', { type: 'image/webp' });
+
+      // 2. Obtener token de sesión
+      const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+      if (!session) {
+        showToast('Sesión expirada. Inicia sesión de nuevo.', 'error');
+        return;
+      }
+
+      // 3. Subir al API
+      const formData = new FormData();
+      formData.append('file', webpFile);
+      const res = await fetch('/api/avatar', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al subir la foto.');
+
+      setAvatarUrl(data.avatarUrl);
+      setIsAvatarModalOpen(false);
+      setAvatarPreview(null);
+      if (avatarFileInputRef.current) (avatarFileInputRef.current as any).__pendingFile = null;
+      showToast('Foto de perfil actualizada con éxito.', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar la foto.';
+      showToast(msg, 'error');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  // Eliminar avatar: llama a DELETE /api/avatar
+  const handleRemoveAvatar = async () => {
+    try {
+      const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+      if (!session) return;
+      const res = await fetch('/api/avatar', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      if (res.ok) {
+        setAvatarUrl(null);
+        setAvatarPreview(null);
+        showToast('Foto de perfil eliminada.', 'info');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Error al eliminar la foto.', 'error');
+      }
+    } catch {
+      showToast('Error al eliminar la foto.', 'error');
+    }
+  };
+
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -2485,7 +2635,11 @@ export default function Home() {
           {/* User locked details */}
           <div className="flex flex-col items-center mb-10 text-center">
             <div className="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center overflow-hidden border border-outline-variant/10 shadow-precision mb-3">
-              <span className="material-symbols-outlined text-3xl text-white">person</span>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined text-3xl text-white">person</span>
+              )}
             </div>
             <h2 className="text-sm font-bold text-primary">{activeUser.name}</h2>
             <p className="text-[10px] text-on-surface-variant font-semibold opacity-85">{activeUser.role}</p>
@@ -2999,7 +3153,11 @@ export default function Home() {
                 className="w-8 h-8 rounded-full bg-primary-container hover:opacity-90 transition-all flex items-center justify-center overflow-hidden focus:outline-none border border-outline-variant/10"
                 title="Menú de Usuario"
               >
-                <span className="material-symbols-outlined text-[18px] text-white select-none leading-none flex items-center justify-center">person</span>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-[18px] text-white select-none leading-none flex items-center justify-center">person</span>
+                )}
               </button>
 
               {isUserDropdownOpen && (
@@ -3027,6 +3185,13 @@ export default function Home() {
                   >
                     <span className="material-symbols-outlined text-sm">key</span>
                     <span>Modificar Contraseña</span>
+                  </button>
+                  <button 
+                    onClick={() => { setIsAvatarModalOpen(true); setIsUserDropdownOpen(false); }}
+                    className="w-full px-4 py-2 text-xs text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors text-left flex items-center gap-2 focus:outline-none"
+                  >
+                    <span className="material-symbols-outlined text-sm">add_a_photo</span>
+                    <span>Cambiar Foto de Perfil</span>
                   </button>
                   
                   <div className="h-px bg-outline-variant/10 my-1"></div>
@@ -3173,7 +3338,9 @@ export default function Home() {
                   <div className="flex items-center gap-3">
                     {/* Avatar elegante */}
                     <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
-                      {googleDriveToken && googleUserEmail ? (
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : googleDriveToken && googleUserEmail ? (
                         <div className="w-full h-full bg-secondary flex items-center justify-center text-white font-bold text-sm uppercase">
                           {googleUserName ? googleUserName.charAt(0) : googleUserEmail.charAt(0)}
                         </div>
@@ -5178,6 +5345,87 @@ export default function Home() {
         />
       )}
 
+      {/* Modal para Subir Foto de Perfil (Avatar) */}
+      {isAvatarModalOpen && (
+        <div className="fixed inset-0 bg-background/40 backdrop-blur-md flex items-center justify-center z-[999] p-4 animate-fade-in">
+          <div className="bg-surface border border-outline-variant/15 w-full max-w-sm p-8 rounded-sm shadow-2xl relative text-left">
+            <h3 className="font-bold text-headline-sm text-primary mb-1">Foto de Perfil</h3>
+            <p className="text-xs text-on-surface-variant mb-6">Sube una fotografía para personalizar tu avatar en toda la aplicación.</p>
+
+            {/* Preview del avatar */}
+            <div className="flex flex-col items-center mb-6 gap-4">
+              <div className="w-24 h-24 rounded-full bg-primary-container border-2 border-outline-variant/20 flex items-center justify-center overflow-hidden shadow-precision">
+                {avatarPreview || avatarUrl ? (
+                  <img
+                    src={avatarPreview || avatarUrl || ''}
+                    alt="Vista previa"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="material-symbols-outlined text-4xl text-white">person</span>
+                )}
+              </div>
+
+              {/* Input file oculto */}
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+                id="avatar-file-input"
+              />
+
+              <button
+                type="button"
+                onClick={() => avatarFileInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 bg-surface-container-low border border-outline-variant/20 rounded-sm text-xs font-semibold text-on-surface-variant hover:text-primary hover:border-primary/30 transition-all focus:outline-none"
+              >
+                <span className="material-symbols-outlined text-sm">upload</span>
+                <span>Seleccionar imagen</span>
+              </button>
+
+              <p className="text-[9px] text-on-surface-variant/60 text-center">Formatos: JPG, PNG, WebP o GIF · Máx. 5 MB</p>
+            </div>
+
+            <div className="flex justify-between items-center gap-3 pt-2">
+              {/* Botón eliminar (solo si ya hay avatar) */}
+              {avatarUrl ? (
+                <button
+                  type="button"
+                  onClick={() => { handleRemoveAvatar(); setIsAvatarModalOpen(false); }}
+                  className="px-3 py-2 text-xs font-bold text-error/70 hover:text-error transition-colors focus:outline-none flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-sm">delete</span>
+                  <span>Eliminar foto</span>
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsAvatarModalOpen(false); setAvatarPreview(null); }}
+                  className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAvatar}
+                  disabled={!avatarPreview || isUploadingAvatar}
+                  className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-sm hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5 focus:outline-none"
+                >
+                  {isUploadingAvatar && <span className="animate-spin material-symbols-outlined text-xs">progress_activity</span>}
+                  <span>Guardar foto</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal para Modificar Contraseña */}
       {isChangePasswordModalOpen && (
         <div className="fixed inset-0 bg-background/40 backdrop-blur-md flex items-center justify-center z-[999] p-4 animate-fade-in">
@@ -5638,7 +5886,11 @@ export default function Home() {
             className="flex flex-col items-center justify-center gap-1 landscape:gap-0.5 w-full h-full transition-all focus:outline-none text-on-surface-variant/70 hover:text-primary"
           >
             <div className={`w-5 h-5 rounded-full flex items-center justify-center overflow-hidden border ${isUserDropdownOpen ? 'bg-primary border-primary text-white' : 'bg-primary-container border-outline-variant/10 text-white'}`}>
-              <span className="material-symbols-outlined text-[13px] landscape:text-[11px] leading-none flex items-center justify-center">person</span>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined text-[13px] landscape:text-[11px] leading-none flex items-center justify-center">person</span>
+              )}
             </div>
             <span className="text-[8px] uppercase tracking-wider font-semibold">Perfil</span>
           </button>
@@ -5666,6 +5918,13 @@ export default function Home() {
                 >
                   <span className="material-symbols-outlined text-sm">key</span>
                   <span>Modificar Contraseña</span>
+                </button>
+                <button 
+                  onClick={() => { setIsAvatarModalOpen(true); setIsUserDropdownOpen(false); }}
+                  className="w-full px-4 py-2 text-xs text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors text-left flex items-center gap-2 focus:outline-none"
+                >
+                  <span className="material-symbols-outlined text-sm">add_a_photo</span>
+                  <span>Cambiar Foto de Perfil</span>
                 </button>
                 <button 
                   onClick={async () => {
