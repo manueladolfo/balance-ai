@@ -2,17 +2,30 @@ name: Supabase Keep Alive
 
 on:
   schedule:
-    # Se ejecuta cada 3 días a las 5:00 UTC
-    - cron: '0 5 */3 * *'
+    # Se ejecuta cada 6 horas (cron: '0 */6 * * *')
+    - cron: '0 */6 * * *'
   workflow_dispatch: # Permite la ejecución manual desde la UI de GitHub
 
 jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
-      - name: Realizar consulta de actividad a Supabase
+      - name: Realizar escritura dinámica en keep_alive_pings
         run: |
-          curl -f -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/documents?limit=1" \
+          curl -f -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/keep_alive_pings" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"run_id": "${{ github.run_id }}", "actor": "${{ github.actor }}", "status": "active_ping"}'
+          echo "Escritura dinámica realizada con éxito en Supabase."
+
+      - name: Limpiar pings con más de 15 días de antigüedad
+        run: |
+          # Calcular la fecha límite de 15 días en formato ISO 8601
+          THRESHOLD_DATE=$(date -u -d "15 days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-15d +%Y-%m-%dT%H:%M:%SZ)
+          echo "Fecha límite para eliminación: $THRESHOLD_DATE"
+          
+          curl -f -X DELETE "${{ secrets.SUPABASE_URL }}/rest/v1/keep_alive_pings?created_at=lt.$THRESHOLD_DATE" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
-          echo "Petición realizada con éxito a Supabase."
+          echo "Limpieza completada con éxito."
