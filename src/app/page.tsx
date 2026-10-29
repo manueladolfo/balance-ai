@@ -3796,8 +3796,8 @@ export default function Home() {
 
                     {isMobileDateOpen && (
                       <>
-                      <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-45" />
-                      <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-80 overflow-y-auto custom-scrollbar animate-fade-in">
+                      <div onClick={() => setIsMobileDateOpen(false)} className="fixed inset-0 z-40" />
+                      <div className="absolute left-0 top-full mt-2 w-48 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-80 overflow-y-auto custom-scrollbar animate-fade-in">
                         {[
                           { val: 'all', label: 'Todos los documentos' },
                           { val: '30days', label: 'Últimos 30 días' },
@@ -3856,8 +3856,8 @@ export default function Home() {
 
                     {isMobileTypeOpen && (
                       <>
-                      <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-45" />
-                      <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                      <div onClick={() => setIsMobileTypeOpen(false)} className="fixed inset-0 z-40" />
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
                         {[
                           { val: 'all', label: 'Todos los tipos' },
                           { val: 'Factura proveedor', label: 'Factura Proveedor' },
@@ -3901,8 +3901,8 @@ export default function Home() {
 
                     {isMobileStatusOpen && (
                       <>
-                      <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-45" />
-                      <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                      <div onClick={() => setIsMobileStatusOpen(false)} className="fixed inset-0 z-40" />
+                      <div className="absolute right-0 top-full mt-2 w-44 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-1 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
                         {[
                           { val: 'all', label: 'Todos' },
                           { val: 'completed', label: 'Completados' },
@@ -5926,7 +5926,7 @@ export default function Home() {
             <>
               <div onClick={() => setIsUserDropdownOpen(false)} className="fixed inset-0 z-45" />
               {/* Dropdown posicionado arriba de la barra en móviles */}
-              <div className="absolute bottom-full right-0 mb-2 w-52 bg-white border border-outline-variant/15 rounded-sm shadow-xl z-50 py-2.5 text-left text-on-surface animate-fade-in">
+              <div className="absolute bottom-full right-0 mb-2 w-52 bg-surface border border-outline-variant/15 rounded-sm shadow-xl z-50 py-2.5 text-left text-on-surface animate-fade-in">
                 <div className="px-4 py-1.5 select-none">
                   <p className="text-xs font-bold text-primary">{activeUser.name}</p>
                   <p className="text-[9px] text-on-surface-variant font-semibold">{activeUser.role}</p>
